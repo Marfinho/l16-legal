@@ -1,0 +1,15 @@
+<h2>Angaben gemäß § 5 DDG</h2>
+<p>{{name}} – {{trade_name}}<br>{{street}}<br>{{zip}} {{city}}<br>{{country}}</p>
+<h2>Kontakt</h2>
+<p>Telefon: {{phone}}{{#if phone_hours}} ({{phone_hours}}){{/if}}<br>E-Mail: {{email}}</p>
+{{#if small_business}}<h2>Umsatzsteuer</h2>
+<p>Gemäß § 19 UStG wird keine Umsatzsteuer erhoben und ausgewiesen (Kleinunternehmerregelung).</p>{{/if}}
+{{#if vat_id}}<p>Umsatzsteuer-Identifikationsnummer: {{vat_id}}</p>{{/if}}
+<h2>Verbraucherstreitbeilegung</h2>
+{{#if adr_willing}}<p>Wir sind bereit, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen: {{adr_body}}.</p>{{/if}}
+{{#if !adr_willing}}<p>Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG).</p>{{/if}}
+<h2>Haftung für Inhalte und Links</h2>
+<p>Als Diensteanbieter sind wir nach § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben unberührt. Eine Haftung ist erst ab Kenntnis einer konkreten Rechtsverletzung möglich; bei Bekanntwerden entsprechender Rechtsverletzungen entfernen wir die Inhalte umgehend. Für Inhalte verlinkter externer Seiten sind ausschließlich deren Betreiber verantwortlich.</p>
+<h2>Urheberrecht</h2>
+<p>Die von uns erstellten Inhalte und Werke unterliegen dem deutschen Urheberrecht. Vervielfältigung, Bearbeitung und Verbreitung außerhalb der Grenzen des Urheberrechts bedürfen unserer schriftlichen Zustimmung. Wenn dir eine Urheberrechtsverletzung auffällt, gib uns bitte einen Hinweis.</p>
+<p><small>Stand: {{stand}}</small></p>

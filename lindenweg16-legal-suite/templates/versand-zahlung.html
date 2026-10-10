@@ -1,0 +1,13 @@
+<h2>Versand und Lieferung</h2>
+<p>Wir liefern ausschließlich innerhalb Deutschlands.</p>
+<p>Die Lieferzeit beträgt in der Regel {{delivery_time}}. Maßgeblich ist die Lieferzeitangabe bei dem jeweiligen Produkt.</p>
+<h3>Versandkosten</h3>
+<p>Die Versandkosten betragen {{shipping_cost}} € pro Bestellung{{#if free_shipping_from}}; ab einem Bestellwert von {{free_shipping_from}} € liefern wir versandkostenfrei{{/if}}. Die genaue Höhe wird dir im Warenkorb und vor Abschluss der Bestellung angezeigt.</p>
+<h2>Zahlung</h2>
+<p>Du kannst folgende Zahlungsarten nutzen: {{payment_methods_text}}.</p>
+<h2>Preise</h2>
+{{#if small_business}}<p>Alle Preise sind Endpreise. Als Kleinunternehmer im Sinne von § 19 UStG weisen wir keine Umsatzsteuer aus.</p>{{/if}}
+{{#if !small_business}}<p>Alle Preise sind Endpreise inklusive gesetzlicher Umsatzsteuer.</p>{{/if}}
+<h2>Rückgabe</h2>
+<p>Informationen zu Widerruf und Rückgabe findest du in der <a href="{{html_withdrawal_page}}">Widerrufsbelehrung</a>.</p>
+<p><small>Stand: {{stand}}</small></p>

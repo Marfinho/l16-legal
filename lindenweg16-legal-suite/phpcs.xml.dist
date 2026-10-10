@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<ruleset name="Lindenweg16 Legal Suite">
+  <file>src</file>
+  <file>lindenweg16-legal-suite.php</file>
+  <arg name="extensions" value="php"/>
+  <rule ref="WordPress-Extra"/>
+  <rule ref="WordPress.Security"/>
+  <config name="minimum_supported_wp_version" value="6.5"/>
+  <rule ref="WordPress.Files.FileName"><exclude name="WordPress.Files.FileName.InvalidClassFileName"/><exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/></rule>
+  <rule ref="Universal.Files.SeparateFunctionsFromOO"/>
+</ruleset>

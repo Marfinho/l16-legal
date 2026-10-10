@@ -1,0 +1,14 @@
+.ll16-banner{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:999999;box-sizing:border-box;width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;padding:20px 24px;background:#fff;color:#1a1a1a;border:1px solid #1a1a1a;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.25);font:16px/1.5 system-ui,sans-serif}
+.ll16-banner h2{margin:0 0 8px;font-size:1.25rem}
+.ll16-banner a{color:inherit;text-decoration:underline}
+.ll16-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+/* alle Buttons optisch gleichwertig: gleiche Größe, Farbe, Gewicht */
+.ll16-btn{flex:1 1 140px;min-height:44px;padding:10px 16px;border:2px solid #1a1a1a;border-radius:6px;background:#fff;color:#1a1a1a;font:inherit;font-weight:600;cursor:pointer}
+.ll16-btn:hover{background:#1a1a1a;color:#fff}
+.ll16-banner :focus-visible,.ll16-float:focus-visible,.ll16-btn:focus-visible{outline:3px solid #0057b8;outline-offset:2px}
+.ll16-cat{margin:12px 0;padding-top:12px;border-top:1px solid #ddd}
+.ll16-services{margin:4px 0 0;padding-left:20px;font-size:.9rem}
+.ll16-float{position:fixed;left:12px;bottom:12px;z-index:99998;padding:6px 10px;border:1px solid #1a1a1a;border-radius:6px;background:#fff;color:#1a1a1a;font:13px system-ui,sans-serif;cursor:pointer}
+.ll16-embed{padding:16px;border:1px solid #ccc;background:#f6f6f6;color:#1a1a1a}
+.ll16-embed .ll16-btn{flex:none}
+@media (prefers-reduced-motion:no-preference){.ll16-banner{transition:opacity .15s}}

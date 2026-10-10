@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: lindenweg16-legal-suite } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.3', tools: composer }
+      - run: composer update --no-interaction --prefer-dist
+      - run: find src -name '*.php' -print0 | xargs -0 -n1 php -l
+      - run: composer test
+      - run: composer stan
+        continue-on-error: true   # Level 6; WooCommerce-Block-Klassen fehlen teils in den Stubs
+      - run: composer lint
+        continue-on-error: true
+  e2e:
+    runs-on: ubuntu-latest
+    if: ${{ vars.LL16_E2E_URL != '' }}
+    defaults: { run: { working-directory: lindenweg16-legal-suite/tests/e2e } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env: { LL16_BASE_URL: '${{ vars.LL16_E2E_URL }}' }
