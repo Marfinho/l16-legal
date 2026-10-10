@@ -16,6 +16,7 @@ echo "== Reset =="
 $WP plugin deactivate lindenweg16-legal-suite 2>&1 | tail -1
 $WP plugin activate lindenweg16-legal-suite 2>&1 | tail -1
 $WP option update ll16_modules '{"consent":true,"gate":true,"legal":true,"withdrawal":true,"checkout":true,"product":true,"forms":true,"security":true,"monitor":true}' --format=json | tail -1
+$WP option delete ll16_services >/dev/null 2>&1
 $WP option update woocommerce_coming_soon no | tail -1
 $WP option update woocommerce_store_pages_only no | tail -1
 rm -f "$WP_PATH/wp-content/debug.log" "$WP_PATH/wp-content/mail.log"
@@ -45,6 +46,9 @@ if [ -f "$WP_PATH/wp-content/debug.log" ]; then
   grep -E "lindenweg16" "$WP_PATH/wp-content/debug.log" | head -20
   grep -c "lindenweg16" "$WP_PATH/wp-content/debug.log" | sed 's/^/Einträge mit Plugin-Bezug: /'
 fi
+
+echo; echo "######## 11-no-woocommerce.sh"
+bash "$HERE/11-no-woocommerce.sh" 2>&1 | tee /tmp/ll16-11.out | grep -E "FAIL|fehlgeschlagen|FEHLER"; grep -q "^0 fehlgeschlagen" /tmp/ll16-11.out || FAIL=1
 
 run 09-uninstall.php
 echo; [ "$FAIL" = "0" ] && echo "GESAMT: alles bestanden" || echo "GESAMT: FEHLER"

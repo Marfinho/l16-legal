@@ -64,7 +64,7 @@ test('Widerruf: nach Akzeptieren über „Cookie-Einstellungen“ ablehnen entfe
   await page.goto(GATE, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: 'Alle akzeptieren' }).click();
   await expect.poll(() => cookieNames(page)).toContain('tst_cookie');
-  await page.getByRole('button', { name: 'Cookie-Einstellungen' }).click();
+  await page.getByRole('link', { name: 'Cookie-Einstellungen' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel(/Statistik/)).toBeChecked();
@@ -136,7 +136,7 @@ test('Barrierefreiheit: Dialog hat Titel/Beschreibung, Fokus kehrt zurück', asy
   await expect(d).toBeVisible();
   await expect(d).toHaveAttribute('aria-describedby', 'll16-desc');
   await d.getByRole('button', { name: 'Ablehnen' }).click();
-  const opener = page.getByRole('button', { name: 'Cookie-Einstellungen' });
+  const opener = page.getByRole('link', { name: 'Cookie-Einstellungen' });
   await opener.focus();
   await opener.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible();

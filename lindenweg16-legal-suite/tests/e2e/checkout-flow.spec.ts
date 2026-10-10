@@ -45,12 +45,12 @@ async function placeOrder(page: Page) {
 
 async function fillAddress(page: Page) {
   await page.goto('/checkout/', { waitUntil: 'networkidle' });
-  await page.getByLabel(/e-?mail/i).first().fill('kaeufer@example.com');
-  await page.getByLabel(/first name|vorname/i).first().fill('Erika');
-  await page.getByLabel(/last name|nachname/i).first().fill('Muster');
-  await page.getByLabel(/^address|straße|adresse/i).first().fill('Musterstraße 1');
-  await page.getByLabel(/postal code|postcode|zip|postleitzahl|plz/i).first().fill('31559');
-  await page.getByLabel(/^city|stadt|ort/i).first().fill('Haste');
+  await page.getByLabel(/^(E-Mail-Adresse|Email address|E-?mail)$/i).first().fill('kaeufer@example.com');
+  await page.getByLabel(/^(first name|vorname)$/i).first().fill('Erika');
+  await page.getByLabel(/^(last name|nachname)$/i).first().fill('Muster');
+  await page.getByLabel(/^(address|adresse)$/i).first().fill('Musterstraße 1');
+  await page.getByLabel(/^(postal code|postcode|zip code|postleitzahl)$/i).first().fill('31559');
+  await page.getByLabel(/^(city|stadt)$/i).first().fill('Haste');
 }
 
 test.describe.configure({ mode: 'serial' });
@@ -73,8 +73,8 @@ test('Bestellung: Button, Hinweis direkt über dem Button, Pflicht-Checkbox, Ver
   await expect(page.getByText(/Testkarte|Testmodus/i)).toHaveCount(0);
 
   // Land: nur Deutschland
-  const countries = await page.locator('select[id$="country"] option').allTextContents();
-  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual([expect.stringMatching(/^(Germany|Deutschland)$/)]);
+  const countries = await page.locator('select[id$="country"] option').evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value).filter(Boolean));
+  expect([...new Set(countries)]).toEqual(['DE']);   // Platzhalter-Option (leerer Wert) ignorieren, Sprache egal
 
   await page.getByRole('radio', { name: /Überweisung/ }).check({ timeout: 20000 });
 

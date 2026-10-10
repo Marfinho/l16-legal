@@ -65,7 +65,7 @@ test('Banner: gleichwertige Buttons, ESC lehnt ab, Widerruf über Footer', async
   expect(Math.abs((a?.height ?? 0) - (b?.height ?? 1))).toBeLessThan(2);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  await page.getByRole('button', { name: 'Cookie-Einstellungen' }).first().click();
+  await page.getByRole('link', { name: 'Cookie-Einstellungen' }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
 

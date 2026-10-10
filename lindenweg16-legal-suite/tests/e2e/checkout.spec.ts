@@ -8,8 +8,8 @@ test('Checkout: Button, Hinweise, nur Deutschland, kein Testkarten-Hinweis', asy
   await expect(page.getByRole('button', { name: 'Zahlungspflichtig bestellen' })).toHaveCount(1);
   await expect(page.getByText(/Widerrufsbelehrung/).first()).toBeVisible();
   await expect(page.getByText(/Testkarte|Testmodus/i)).toHaveCount(0);
-  const countries = await page.locator('select[id$="country"] option').allTextContents();
-  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual([expect.stringMatching(/^(Germany|Deutschland)$/)]);
+  const countries = await page.locator('select[id$="country"] option').evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value).filter(Boolean));
+  expect([...new Set(countries)]).toEqual(['DE']);   // Platzhalter-Option (leerer Wert) ignorieren, Sprache egal
 });
 
 test('Widerruf: zweistufig, ohne Login', async ({ page }) => {
