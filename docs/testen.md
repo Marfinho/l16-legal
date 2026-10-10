@@ -8,6 +8,7 @@ Vier Ebenen, alle gegen **echte** Software (WordPress 7.1.3, WooCommerce 11.2.1,
 | 2 Integration | `tests/integration/0*.php` | läuft per `wp eval-file` im geladenen WordPress, dazu HTTP-Requests gegen den Webserver (Aktivierung/Schema, Rechtstexte, Consent-REST/Rewriter, Widerruf, Checkout/Produkt/Store-API, Formulare/Newsletter/DSGVO, Header/Monitor, Admin, Deinstallation) |
 | 3 Browser | `tests/e2e/*.spec.ts` | Playwright mit Chromium: Banner-Verhalten, Allowlist für Requests/Cookies auf allen Seiten (vorher/Ablehnen/Akzeptieren), Block-Checkout mit echter Bestellung, Skript-Scope für Zahlungsdienste |
 | 4 CLI | `run-all.sh` | `wp ll16-legal check` (Exit-Code) |
+| 5 Randfälle | `10-edge-cases.php`, `11-no-woocommerce.sh`, `e2e/ux.spec.ts` | Unicode/Injection/Mehrfachklick/Rate-Limits/Mailfehler, Footer, Stammdaten-Validierung, Versandkosten-Konsistenz, klassischer Checkout, Upgrade, WooCommerce aus; axe (WCAG 2.1 AA), Tastatur, ohne JS, 320 px, Dark Mode, Zoom, kaputte Cookies |
 
 ## Lauf von Null (ohne Docker/MySQL)
 
@@ -24,6 +25,9 @@ tests/integration/run-all.sh
 ## Testmittel
 - Mails werden abgefangen (`wp-content/mail.log`, mu-plugin `harness/ll16-test-harness.php`); HTTPS wird über den Header `X-Test-Https` simuliert; Fremdplugin-Skripte (Stripe/PayPal/reCAPTCHA/Stats) werden per Option `ll16_test_inject_third_party` simuliert.
 - Die Testinstanz ist bewusst **ohne** WooPayments/PayPal/Germanized/Complianz/Jetpack: deren echte Skripte und Hook-Namen sind damit **nicht** getestet (siehe `docs/ist-zustand.md`, Spalte „Rest“).
+
+## Geprüfte Umgebungen
+Deutsche Sprachpakete (de_DE), HPOS aktiv und Posts-Speicher, WooCommerce deaktiviert, Block-Checkout und klassischer Checkout.
 
 ## Bekannte Grenzen
 - Zahlung über Stripe/PayPal (3-D-Secure, Apple/Google Pay) nicht testbar ohne Konten.
