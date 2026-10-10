@@ -281,6 +281,14 @@ $pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=texts', [], $admin )
 t( 'Seiten-Sync fragt vor dem Überschreiben nach', str_contains( $pg, 'confirm(' ) && str_contains( $pg, 'Revision' ) );
 
 /* ---------------------------------------------------------------------------------------- */
+section( 'Stammdaten: Listenfelder (Rundlauf wie im Formular)' );
+$s2 = Masterdata::sanitize( [ 'payment_methods' => 'PayPal, Kreditkarte, Apple Pay, SEPA-Lastschrift' ] );
+t( 'Zahlungsarten mit Leerzeichen bleiben ganz („Apple Pay“)', [ 'PayPal', 'Kreditkarte', 'Apple Pay', 'SEPA-Lastschrift' ] === $s2['payment_methods'], wp_json_encode( $s2['payment_methods'] ) );
+t( 'Anzeige → Speichern → Anzeige ist stabil (kein Wort-Zerfall)', Masterdata::sanitize( [ 'payment_methods' => implode( ', ', $s2['payment_methods'] ) ] )['payment_methods'] === $s2['payment_methods'] );
+t( 'Zeilenumbrüche und Semikolon trennen ebenfalls', [ 'A', 'B C', 'D' ] === Masterdata::sanitize( [ 'payment_methods' => "A\nB C; D" ] )['payment_methods'] );
+t( 'Leere Einträge werden verworfen', [ 'A' ] === Masterdata::sanitize( [ 'payment_methods' => ',, A ,' ] )['payment_methods'] );
+t( 'Länderliste: Leerzeichen/Komma/Semikolon', [ 'DE', 'AT' ] === Masterdata::sanitize( [ 'delivery_countries' => 'DE AT' ] )['delivery_countries'] || [ 'de', 'at' ] === Masterdata::sanitize( [ 'delivery_countries' => 'de, at' ] )['delivery_countries'] );
+
 section( 'Rechtstexte: Injection über Stammdaten' );
 $m = Masterdata::defaults();
 $m['payment_methods']  = [ 'PayPal' ];

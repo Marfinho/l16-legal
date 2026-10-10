@@ -93,7 +93,7 @@ final class Module {
 		woocommerce_register_additional_checkout_field(
 			[
 				'id'            => 'lindenweg16/terms',
-				'label'         => 'Ich habe die AGB, die Widerrufsbelehrung und die Datenschutzerklärung (verlinkt über dem Bestell-Button) gelesen und akzeptiere die AGB.',
+				'label'         => 'Ich habe AGB, Widerrufsbelehrung und Datenschutzerklärung gelesen und akzeptiere die AGB.',
 				'location'      => 'order',
 				'type'          => 'checkbox',
 				'required'      => true,

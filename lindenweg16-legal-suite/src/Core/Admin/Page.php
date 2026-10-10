@@ -163,7 +163,8 @@ final class Page {
 		echo '<div class="wrap"><h1>Lindenweg16 Recht</h1>';
 		echo '<div class="notice notice-warning inline"><p><strong>Entwurf, nicht anwaltlich geprüft.</strong> Die generierten Rechtstexte ersetzen keine Rechtsberatung.</p></div>';
 		if ( ! empty( $_GET['ll16_notice'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( rawurldecode( sanitize_text_field( wp_unslash( $_GET['ll16_notice'] ) ) ) ) . '</p></div>'; // phpcs:ignore WordPress.Security.NonceVerification
+			$msg = rawurldecode( sanitize_text_field( wp_unslash( $_GET['ll16_notice'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
+			echo '<div class="notice ' . ( str_starts_with( $msg, 'Teilweise' ) ? 'notice-warning' : 'notice-success' ) . ' is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 		}
 		echo '<h2 class="nav-tab-wrapper">';
 		foreach ( self::TABS as $key => $label ) {
@@ -306,7 +307,12 @@ final class Page {
 		echo '<p>Stand: ' . esc_html( (string) $last['time'] ) . ' UTC. CLI: <code>wp ll16-legal check</code></p><table class="widefat striped"><tbody>';
 		$icons = [ 'ok' => '✅', 'warn' => '⚠️', 'fail' => '❌' ];
 		foreach ( (array) $last['results'] as $r ) {
-			printf( '<tr><td>%s</td><td><strong>%s</strong><br>%s</td></tr>', esc_html( $icons[ $r['status'] ] ?? '' ), esc_html( $r['label'] ), esc_html( $r['detail'] ) );
+			$detail = '';
+			if ( 'ok' !== $r['status'] && '' !== trim( (string) $r['detail'] ) ) {
+				$parts  = array_filter( array_map( 'trim', explode( ' | ', (string) $r['detail'] ) ) );
+				$detail = count( $parts ) > 1 ? '<ul style="margin:.3rem 0 0 1.2rem;list-style:disc">' . implode( '', array_map( static fn( $x ) => '<li>' . esc_html( $x ) . '</li>', $parts ) ) . '</ul>' : '<br>' . esc_html( (string) $r['detail'] );
+			}
+			printf( '<tr><td style="width:2rem">%s</td><td><strong>%s</strong>%s</td></tr>', esc_html( $icons[ $r['status'] ] ?? '' ), esc_html( $r['label'] ), $detail ); // phpcs:ignore WordPress.Security.EscapeOutput
 		}
 		echo '</tbody></table>';
 	}

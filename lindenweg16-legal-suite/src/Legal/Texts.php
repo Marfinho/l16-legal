@@ -15,7 +15,7 @@ final class Texts {
 	public const PAGES = [
 		'impressum'       => 'Impressum',
 		'datenschutz'     => 'Datenschutzerklärung',
-		'agb'             => 'Allgemeine Geschäftsbedingungen',
+		'agb'             => 'AGB',
 		'widerruf'        => 'Widerrufsbelehrung',
 		'versand-zahlung' => 'Versand & Zahlung',
 		'cookies'         => 'Cookie-Richtlinie',

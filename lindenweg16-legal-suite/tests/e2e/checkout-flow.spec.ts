@@ -80,7 +80,7 @@ test('Bestellung: Button, Hinweis direkt über dem Button, Pflicht-Checkbox, Ver
 
   // 1) Ohne Pflicht-Checkbox keine Bestellung
   const before = orderCount();
-  const terms = page.getByLabel(/Ich habe die AGB, die Widerrufsbelehrung/).first();
+  const terms = page.getByLabel(/Ich habe AGB, Widerrufsbelehrung/).first();
   await expect(terms).not.toBeChecked();
   await button.click();
   await page.waitForTimeout(2000);
@@ -116,7 +116,7 @@ test('Bestellung: individuell angefertigte Ware verlangt zusätzliche Bestätigu
   await addToCart(page, '/product/sonderanfertigung/');
   await fillAddress(page);
   await page.getByRole('radio', { name: /Überweisung/ }).check({ timeout: 20000 });
-  await page.getByLabel(/Ich habe die AGB, die Widerrufsbelehrung/).first().check();
+  await page.getByLabel(/Ich habe AGB, Widerrufsbelehrung/).first().check();
   const before = orderCount();
   await placeOrder(page);
   await expect(page.locator('body')).toContainText(/Ausschluss des Widerrufsrechts/, { timeout: 15000 });

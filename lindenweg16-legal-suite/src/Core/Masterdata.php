@@ -78,8 +78,10 @@ final class Masterdata {
 			} elseif ( is_int( $default ) ) {
 				$out[ $key ] = max( 0, (int) $val );
 			} elseif ( is_array( $default ) ) {
-				$list        = is_array( $val ) ? $val : preg_split( '/[\s,]+/', (string) $val, -1, PREG_SPLIT_NO_EMPTY );
-				$out[ $key ] = array_values( array_map( 'sanitize_text_field', (array) $list ) );
+				// Zahlungsarten enthalten Leerzeichen („Apple Pay“): nur an Komma/Zeilenumbruch trennen. Länderlisten auch an Leerzeichen.
+				$sep         = 'payment_methods' === $key ? '/\s*[,;\n]\s*/' : '/[\s,;]+/';
+				$list        = is_array( $val ) ? $val : preg_split( $sep, trim( (string) $val ), -1, PREG_SPLIT_NO_EMPTY );
+				$out[ $key ] = array_values( array_filter( array_map( 'sanitize_text_field', (array) $list ), static fn( $v ) => '' !== $v ) );
 			} elseif ( 'email' === $key ) {
 				$out[ $key ] = sanitize_email( (string) $val );
 			} elseif ( str_ends_with( $key, '_url' ) ) {

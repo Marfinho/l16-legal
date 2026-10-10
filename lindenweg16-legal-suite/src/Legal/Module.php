@@ -11,6 +11,8 @@ final class Module {
 
 	public const SNAPSHOT_META = '_ll16_legal_snapshot';
 	public const SNAPSHOT_SLUGS = [ 'agb', 'widerruf', 'datenschutz' ];
+	/** Vollständige Überschriften im Vertragstext-Anhang (die Seite selbst heißt kurz „AGB“). */
+	public const SNAPSHOT_TITLES = [ 'agb' => 'Allgemeine Geschäftsbedingungen (AGB)', 'widerruf' => 'Widerrufsbelehrung', 'datenschutz' => 'Datenschutzerklärung' ];
 
 	public static function init(): void {
 		add_action( 'template_redirect', [ self::class, 'redirects' ], 1 );
@@ -173,7 +175,7 @@ final class Module {
 		foreach ( self::SNAPSHOT_SLUGS as $slug ) {
 			$html                    = Texts::render( $slug );
 			$snap['texts'][ $slug ] = [
-				'title'   => Texts::PAGES[ $slug ],
+				'title'   => self::SNAPSHOT_TITLES[ $slug ] ?? Texts::PAGES[ $slug ],
 				'html'    => $html,
 				'hash'    => md5( $html ),
 				'version' => (int) ( (array) get_option( 'll16_text_versions', [] )[ $slug ]['version'] ?? 0 ),
