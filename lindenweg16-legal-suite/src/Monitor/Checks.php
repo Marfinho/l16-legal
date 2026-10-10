@@ -136,7 +136,8 @@ final class Checks {
 				if ( preg_match( '/type=["\']text\/plain/i', $x[0] ) || 'link' === strtolower( $x[1] ) && ! preg_match( '/stylesheet|preload|script/i', $x[0] ) ) {
 					continue;
 				}
-				if ( ! in_array( $x[3], $allowed, true ) && ! preg_match( '/^(www\.)?' . preg_quote( $allowed[0] ?? '', '/' ) . '$/', $x[3] ) ) {
+				$host = (string) preg_replace( '/:\d+$/', '', $x[3] );
+				if ( ! in_array( $host, $allowed, true ) && ! preg_match( '/^(www\.)?' . preg_quote( $allowed[0] ?? '', '/' ) . '$/', $host ) ) {
 					$bad[] = $p . ' → ' . $x[3];
 				}
 			}
@@ -245,7 +246,7 @@ final class Checks {
 	/** 8) Widerrufsfunktion */
 	private function withdrawal(): array {
 		$html = $this->fetch( '/vertrag-widerrufen/' );
-		$ok   = str_contains( $html, 'Weiter' ) && str_contains( $html, 'name="order"' );
+		$ok   = str_contains( $html, 'Weiter' ) && str_contains( $html, 'name="ll16_order"' );
 		return [
 			self::r( 'withdrawal-page', 'Widerrufsfunktion erreichbar und Formular vorhanden', $ok ? 'ok' : 'fail', $ok ? '' : '/vertrag-widerrufen/ liefert kein Formular' ),
 			self::r( 'withdrawal-mail', 'Testwiderruf erzeugt Bestätigungs-Mail', 'warn', 'Nur auf Staging manuell/per E2E testbar (E-Mail-Versand). Bis zum Test als offen führen.' ),

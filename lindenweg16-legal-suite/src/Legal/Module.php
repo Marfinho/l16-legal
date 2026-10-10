@@ -77,11 +77,11 @@ final class Module {
 			self::record_version( $slug, $hash );
 			$result[ $slug ] = [] === $errors ? 'ok' : 'Linter: ' . implode( '; ', $errors );
 		}
-		self::ensure_withdrawal_page();
+		self::ensure_withdrawal_page( $publish );
 		return $result;
 	}
 
-	public static function ensure_withdrawal_page(): void {
+	public static function ensure_withdrawal_page( bool $publish = false ): void {
 		$slug = 'vertrag-widerrufen';
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		$args = [
@@ -94,6 +94,9 @@ final class Module {
 			$args['ID'] = $page->ID;
 		} else {
 			$args['post_status'] = 'draft';
+		}
+		if ( $publish ) {
+			$args['post_status'] = 'publish';
 		}
 		wp_insert_post( $args );
 	}

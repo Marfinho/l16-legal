@@ -62,4 +62,6 @@ composer lint        # WPCS
 cd tests/e2e && npm install && LL16_BASE_URL=https://staging.example npx playwright test
 ```
 
-Siehe auch `docs/`: `ist-zustand.md` (Befundabgleich L1–L16), `rechtslage.md` (recherchierte Quellen, offene Punkte), `migration.md` (Abschaltung der Altplugins, Rollback).
+Vollständiger Testlauf gegen echtes WordPress/WooCommerce/Chromium (ohne Docker): `docs/testen.md`.
+
+Siehe auch `docs/`: `testen.md` (Testebenen, Lauf von Null, Grenzen), `ist-zustand.md` (Befundabgleich L1–L16), `rechtslage.md` (recherchierte Quellen, offene Punkte), `migration.md` (Abschaltung der Altplugins, Rollback).

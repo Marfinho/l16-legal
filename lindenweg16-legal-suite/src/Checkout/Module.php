@@ -15,6 +15,7 @@ final class Module {
 	public static function init(): void {
 		add_action( 'wp_enqueue_scripts', [ self::class, 'enqueue' ] );
 		add_filter( 'woocommerce_order_button_text', static fn() => self::BUTTON );
+		add_action( 'woocommerce_review_order_before_submit', static fn() => print( self::terms_notice() ) ); // phpcs:ignore WordPress.Security.EscapeOutput
 		add_filter( 'render_block', [ self::class, 'render_block' ], 10, 2 );
 		add_action( 'woocommerce_init', [ self::class, 'register_fields' ] );
 		add_filter( 'woocommerce_countries_allowed_countries', [ self::class, 'countries' ] );
@@ -26,11 +27,12 @@ final class Module {
 	}
 
 	public static function enqueue(): void {
+		wp_enqueue_style( 'll16-checkout', LL16_URL . 'assets/checkout.css', [], LL16_VERSION );
 		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
 			return;
 		}
 		wp_enqueue_script( 'll16-checkout', LL16_URL . 'assets/checkout.js', [ 'wc-blocks-checkout' ], LL16_VERSION, true );
-		wp_add_inline_script( 'll16-checkout', 'window.LL16_CHECKOUT=' . wp_json_encode( [ 'buttonLabel' => self::BUTTON ] ) . ';', 'before' );
+		wp_add_inline_script( 'll16-checkout', 'window.LL16_CHECKOUT=' . wp_json_encode( [ 'buttonLabel' => self::BUTTON, 'noticeHtml' => self::terms_notice() ] ) . ';', 'before' );
 	}
 
 	/**
@@ -39,21 +41,34 @@ final class Module {
 	 */
 	public static function render_block( $html, $block ) {
 		$name = $block['blockName'] ?? '';
-		if ( 'woocommerce/checkout-actions-block' === $name ) {
-			$links = sprintf(
-				'<div class="ll16-checkout-terms"><p>Mit Klick auf „%s" gibst du eine verbindliche Bestellung ab. Es gelten unsere <a href="%s" target="_blank" rel="noopener">AGB</a>. Deine <a href="%s" target="_blank" rel="noopener">Widerrufsbelehrung</a> (inkl. Muster-Widerrufsformular) und die <a href="%s" target="_blank" rel="noopener">Datenschutzerklärung</a> findest du hier. Du hast ein Widerrufsrecht von %d Tagen; ausgenommen sind individuell angefertigte Waren.</p></div>',
-				esc_html( self::BUTTON ),
-				esc_url( home_url( '/agb/' ) ),
-				esc_url( home_url( '/widerruf/' ) ),
-				esc_url( home_url( '/datenschutz/' ) ),
-				(int) Masterdata::get( 'withdrawal_days' )
-			);
-			return $links . $html;
-		}
 		if ( in_array( $name, [ 'woocommerce/checkout-fields-block', 'woocommerce/cart-items-block' ], true ) ) {
-			return self::shipping_notice() . $html;
+			return self::inject( (string) $html, self::shipping_notice() );
 		}
 		return $html;
+	}
+
+	/** Rechtlicher Hinweis direkt über dem Bestell-Button (AGB, Widerrufsbelehrung, Datenschutz, Widerrufsrecht). */
+	public static function terms_notice(): string {
+		return sprintf(
+			'<div class="ll16-checkout-terms"><p>Mit Klick auf „%s“ gibst du eine verbindliche Bestellung ab. Es gelten unsere <a href="%s" target="_blank" rel="noopener">AGB</a>. Deine <a href="%s" target="_blank" rel="noopener">Widerrufsbelehrung</a> (inkl. Muster-Widerrufsformular) und die <a href="%s" target="_blank" rel="noopener">Datenschutzerklärung</a> findest du hier. Du hast ein Widerrufsrecht von %d Tagen; ausgenommen sind individuell angefertigte Waren.</p></div>',
+			esc_html( self::BUTTON ),
+			esc_url( home_url( '/agb/' ) ),
+			esc_url( home_url( '/widerruf/' ) ),
+			esc_url( home_url( '/datenschutz/' ) ),
+			(int) Masterdata::get( 'withdrawal_days' )
+		);
+	}
+
+	/**
+	 * Setzt Zusatzmarkup INNERHALB des Wurzelelements des Blocks ein. WooCommerce erkennt Blöcke am
+	 * ersten Element der Ausgabe (data-block-name); ein vorangestelltes Element lässt den Block-Checkout
+	 * Schritte mehrfach rendern.
+	 */
+	public static function inject( string $html, string $extra ): string {
+		if ( 1 === preg_match( '/^\s*<[a-z][^>]*>/i', $html, $m ) ) {
+			return substr_replace( $html, $extra, strlen( $m[0] ), 0 );
+		}
+		return $html . $extra;
 	}
 
 	private static function shipping_notice(): string {
@@ -155,15 +170,12 @@ final class Module {
 		if ( ! $has_individual ) {
 			return;
 		}
-		$ack = null;
-		if ( class_exists( \Automattic\WooCommerce\Blocks\Package::class ) ) {
-			try {
-				$fields = \Automattic\WooCommerce\Blocks\Package::container()->get( \Automattic\WooCommerce\Blocks\Domain\Services\CheckoutFields::class );
-				$ack    = $fields->get_field_from_object( 'lindenweg16/individual_ack', $order, 'other' );
-			} catch ( \Throwable $e ) {
-				$ack = null; // zu klären: Feld-API in neuer WooCommerce-Version prüfen
-			}
-		}
+		// WooCommerce speichert Zusatzfelder vor diesem Hook als Bestell-Meta `_wc_other/<id>`;
+		// zusätzlich der Request-Wert als zweite Quelle.
+		$stored  = $order->get_meta( '_wc_other/lindenweg16/individual_ack' );
+		$posted  = ( (array) ( $request['additional_fields'] ?? [] ) )['lindenweg16/individual_ack'] ?? null;
+		$truthy  = [ '1', 1, true, 'true', 'yes', 'on' ];
+		$ack     = in_array( $stored, $truthy, true ) || in_array( $posted, $truthy, true );
 		if ( ! $ack ) {
 			throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException( 'll16_individual_ack', 'Bitte bestätige den Hinweis zum Ausschluss des Widerrufsrechts bei individuell angefertigten Waren.', 400 );
 		}

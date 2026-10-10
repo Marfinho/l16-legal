@@ -10,7 +10,20 @@ final class Module {
 
 	public static function init(): void {
 		add_action( 'send_headers', [ self::class, 'send' ] );
+		// Diese Pfade durchlaufen `send_headers` nicht: REST, Login, Admin.
+		add_filter( 'rest_pre_serve_request', [ self::class, 'send_filter' ] );
+		add_action( 'login_init', [ self::class, 'send' ] );
+		add_action( 'admin_init', [ self::class, 'send' ] );
 		add_action( 'rest_api_init', [ self::class, 'routes' ] );
+	}
+
+	/**
+	 * @param mixed $served
+	 * @return mixed
+	 */
+	public static function send_filter( $served ) {
+		self::send();
+		return $served;
 	}
 
 	public static function send(): void {

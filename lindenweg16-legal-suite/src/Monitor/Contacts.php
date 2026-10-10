@@ -11,10 +11,12 @@ final class Contacts {
 
 	/** @return array{emails:string[],phones:string[]} */
 	public static function extract( string $html ): array {
-		$text = html_entity_decode( strip_tags( (string) preg_replace( '#<(script|style)\b.*?</\1>#is', ' ', $html ) ), ENT_QUOTES );
+		// Tags werden zu Zeilenumbrüchen, damit Nummern nicht mit Ziffern der Folgezeile verschmelzen.
+		$clean = (string) preg_replace( '#<(script|style)\b.*?</\1>#is', ' ', $html );
+		$text  = html_entity_decode( strip_tags( (string) preg_replace( '/<[^>]+>/', "\n", $clean ) ), ENT_QUOTES );
 		preg_match_all( '/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i', $text, $m );
 		$emails = array_values( array_unique( array_map( 'strtolower', $m[0] ) ) );
-		preg_match_all( '/(?<![\d])(?:\+49|0049|0)[\d\s\/().-]{8,16}\d(?![\d])/', $text, $p );
+		preg_match_all( '/(?<![\d])(?:\+49|0049|0)[\d \t\/().-]{8,16}\d(?![\d])/', $text, $p );
 		$phones = array_values( array_unique( array_map( [ self::class, 'normalize_phone' ], $p[0] ) ) );
 		return [ 'emails' => $emails, 'phones' => $phones ];
 	}

@@ -13,7 +13,7 @@ const PAYMENT_HOSTS = [/(^|\.)stripe\.com$/, /(^|\.)stripe\.network$/, /(^|\.)pa
 const PAYMENT_PATHS = [/\/(warenkorb|cart|checkout|kasse|abschluss)\//];
 const PAGES = (process.env.LL16_PAGES ?? '/,/shop/,/contact-us/,/impressum/,/datenschutz/,/agb/,/widerruf/,/vertrag-widerrufen/,/versand-zahlung/,/cookies/,/warenkorb/').split(',');
 // Nach "Alle akzeptieren" zusätzlich erlaubt (nur wenn im Register aktiv):
-const ACCEPTED_EXTRA_HOSTS = (process.env.LL16_ACCEPTED_HOSTS ?? 'www.google.com,maps.gstatic.com').split(',');
+const ACCEPTED_EXTRA_HOSTS = (process.env.LL16_ACCEPTED_HOSTS ?? 'www.google.com,maps.gstatic.com,maps.googleapis.com,fonts.googleapis.com,fonts.gstatic.com,www.gstatic.com').split(',');
 
 async function visit(page: Page, path: string) {
   const hosts = new Set<string>();

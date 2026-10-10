@@ -81,6 +81,11 @@ final class PureLogicTest extends TestCase {
 		$this->assertSame( '01567373047', Contacts::normalize_phone( '+49 1567 373047' ) );
 	}
 
+	public function test_phone_is_not_merged_with_following_heading_number(): void {
+		$m = [ 'email' => 'a@b.de', 'phone' => '01567373047' ];
+		$this->assertSame( [], Contacts::deviations( '<p>Telefon: 01567373047</p><h2>2. Deine Rechte</h2>', $m ) );
+	}
+
 	public function test_gpsr_and_claims(): void {
 		$this->assertCount( 4, Gpsr::missing( [] ) );
 		$this->assertSame( [], Gpsr::missing( array_fill_keys( array_keys( Gpsr::REQUIRED ), 'x' ) ) );

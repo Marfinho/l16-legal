@@ -70,7 +70,7 @@ final class Module {
 
 	private static function guard(): ?string {
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( '' !== (string) ( $_POST['website'] ?? '' ) ) {
+		if ( '' !== (string) ( $_POST['ll16_website'] ?? '' ) ) {
 			return 'Die Anfrage konnte nicht verarbeitet werden.';
 		}
 		$t = Token::verify( (string) ( $_POST['ll16_ts'] ?? '' ), self::secret() );
@@ -83,7 +83,7 @@ final class Module {
 
 	private static function hidden(): string {
 		return '<input type="hidden" name="ll16_ts" value="' . esc_attr( Token::sign( [], time(), self::secret() ) ) . '">'
-			. '<div style="position:absolute;left:-9999px" aria-hidden="true"><label>Bitte leer lassen<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>';
+			. '<div style="position:absolute;left:-9999px" aria-hidden="true"><label>Bitte leer lassen<input type="text" name="ll16_website" tabindex="-1" autocomplete="off"></label></div>';
 	}
 
 	private static function posted( string $form ): bool {
@@ -94,6 +94,7 @@ final class Module {
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
 			define( 'DONOTCACHEPAGE', true );
 		}
+		nocache_headers();
 		do_action( 'litespeed_control_set_nocache', 'll16 form' );
 	}
 
@@ -105,10 +106,10 @@ final class Module {
 		if ( self::posted( 'contact' ) ) {
 			$err = self::guard();
 			// phpcs:disable WordPress.Security.NonceVerification
-			$name  = sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) );
-			$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
-			$text  = sanitize_textarea_field( wp_unslash( $_POST['message'] ?? '' ) );
-			$ok    = ! empty( $_POST['privacy'] );
+			$name  = sanitize_text_field( wp_unslash( $_POST['ll16_name'] ?? '' ) );
+			$email = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) );
+			$text  = sanitize_textarea_field( wp_unslash( $_POST['ll16_message'] ?? '' ) );
+			$ok    = ! empty( $_POST['ll16_privacy'] );
 			// phpcs:enable
 			if ( null === $err && ( '' === $name || ! is_email( $email ) || '' === $text ) ) {
 				$err = 'Bitte fülle alle Pflichtfelder aus.';
@@ -128,10 +129,10 @@ final class Module {
 		$privacy = esc_url( home_url( '/datenschutz/' ) );
 		return $msg . '<form method="post" class="ll16-form">'
 			. '<input type="hidden" name="ll16_form" value="contact">' . self::hidden()
-			. '<p><label>Name *<br><input type="text" name="name" required autocomplete="name"></label></p>'
-			. '<p><label>E-Mail *<br><input type="email" name="email" required autocomplete="email"></label></p>'
-			. '<p><label>Nachricht *<br><textarea name="message" rows="6" required></textarea></label></p>'
-			. '<p><label><input type="checkbox" name="privacy" value="1" required> Ich habe die <a href="' . $privacy . '" target="_blank" rel="noopener">Datenschutzerklärung</a> gelesen. Meine Angaben werden zur Bearbeitung meiner Anfrage verarbeitet und nach ' . (int) ( ( (array) get_option( 'll16_settings', [] ) )['contact_retention_days'] ?? 90 ) . ' Tagen gelöscht.</label></p>'
+			. '<p><label>Name *<br><input type="text" name="ll16_name" required autocomplete="name"></label></p>'
+			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required autocomplete="email"></label></p>'
+			. '<p><label>Nachricht *<br><textarea name="ll16_message" rows="6" required></textarea></label></p>'
+			. '<p><label><input type="checkbox" name="ll16_privacy" value="1" required> Ich habe die <a href="' . $privacy . '" target="_blank" rel="noopener">Datenschutzerklärung</a> gelesen. Meine Angaben werden zur Bearbeitung meiner Anfrage verarbeitet und nach ' . (int) ( ( (array) get_option( 'll16_settings', [] ) )['contact_retention_days'] ?? 90 ) . ' Tagen gelöscht.</label></p>'
 			. '<p><button type="submit" class="wp-element-button">Absenden</button></p></form>';
 	}
 
@@ -142,8 +143,8 @@ final class Module {
 		$msg = '';
 		if ( self::posted( 'newsletter' ) ) {
 			$err   = self::guard();
-			$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
-			if ( null === $err && ( ! is_email( $email ) || empty( $_POST['consent'] ) ) ) { // phpcs:ignore WordPress.Security
+			$email = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+			if ( null === $err && ( ! is_email( $email ) || empty( $_POST['ll16_consent'] ) ) ) { // phpcs:ignore WordPress.Security
 				$err = 'Bitte gib eine gültige E-Mail-Adresse an und stimme zu.';
 			}
 			if ( null === $err ) {
@@ -154,8 +155,8 @@ final class Module {
 		}
 		return $msg . '<form method="post" class="ll16-form">'
 			. '<input type="hidden" name="ll16_form" value="newsletter">' . self::hidden()
-			. '<p><label>E-Mail *<br><input type="email" name="email" required autocomplete="email"></label></p>'
-			. '<p><label><input type="checkbox" name="consent" value="1" required> Ich möchte den Newsletter erhalten und stimme der Verarbeitung meiner E-Mail-Adresse dafür zu (Double-Opt-in, jederzeit per Link in jeder Mail widerrufbar). Mehr in der <a href="' . esc_url( home_url( '/datenschutz/' ) ) . '">Datenschutzerklärung</a>.</label></p>'
+			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required autocomplete="email"></label></p>'
+			. '<p><label><input type="checkbox" name="ll16_consent" value="1" required> Ich möchte den Newsletter erhalten und stimme der Verarbeitung meiner E-Mail-Adresse dafür zu (Double-Opt-in, jederzeit per Link in jeder Mail widerrufbar). Mehr in der <a href="' . esc_url( home_url( '/datenschutz/' ) ) . '">Datenschutzerklärung</a>.</label></p>'
 			. '<p><button type="submit" class="wp-element-button">Anmelden</button></p></form>';
 	}
 
@@ -209,8 +210,8 @@ final class Module {
 		$pid = (int) ( $atts['product'] ?? get_the_ID() );
 		if ( self::posted( 'notify' ) ) {
 			$err   = self::guard();
-			$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
-			if ( null === $err && is_email( $email ) && ! empty( $_POST['consent'] ) ) { // phpcs:ignore WordPress.Security
+			$email = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+			if ( null === $err && is_email( $email ) && ! empty( $_POST['ll16_consent'] ) ) { // phpcs:ignore WordPress.Security
 				global $wpdb;
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$wpdb->replace( $wpdb->prefix . 'll16_notify', [ 'product_id' => $pid, 'email' => $email, 'created_at' => gmdate( 'Y-m-d H:i:s' ) ] );
@@ -219,8 +220,8 @@ final class Module {
 			return '<p role="alert"><strong>Bitte gib eine gültige E-Mail-Adresse an und stimme zu.</strong></p>';
 		}
 		return '<form method="post" class="ll16-form"><input type="hidden" name="ll16_form" value="notify">' . self::hidden()
-			. '<p><label>E-Mail *<br><input type="email" name="email" required></label></p>'
-			. '<p><label><input type="checkbox" name="consent" value="1" required> Bitte benachrichtigt mich einmalig, wenn dieses Produkt wieder verfügbar ist. Meine E-Mail-Adresse wird nur dafür verwendet und danach gelöscht.</label></p>'
+			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required></label></p>'
+			. '<p><label><input type="checkbox" name="ll16_consent" value="1" required> Bitte benachrichtigt mich einmalig, wenn dieses Produkt wieder verfügbar ist. Meine E-Mail-Adresse wird nur dafür verwendet und danach gelöscht.</label></p>'
 			. '<p><button type="submit" class="wp-element-button">Benachrichtigen</button></p></form>';
 	}
 

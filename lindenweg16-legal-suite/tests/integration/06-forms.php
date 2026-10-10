@@ -1,0 +1,140 @@
+<?php
+require __DIR__ . '/lib.php';
+use Lindenweg16\Legal\Forms\Module as Forms;
+global $wpdb;
+
+$tc = $wpdb->prefix . 'll16_contact';
+$ts = $wpdb->prefix . 'll16_subscribers';
+$tn = $wpdb->prefix . 'll16_notify';
+foreach ( [ $tc, $ts, $tn ] as $t ) {
+	$wpdb->query( "DELETE FROM {$t}" );
+}
+clear_mails();
+make_page( 'kontakt-test', 'Kontakt', '[ll16_contact]' );
+make_page( 'newsletter-test', 'Newsletter', '[ll16_newsletter]' );
+$jar = [];
+
+section( 'Kontaktformular' );
+$r = http( 'GET', '/kontakt-test/', [], $jar );
+t( 'Formular wird gerendert', 200 === $r['code'] && str_contains( $r['body'], 'name="ll16_message"' ) );
+t( 'Datenschutzhinweis mit Link & Löschfrist', str_contains( $r['body'], '/datenschutz/' ) && str_contains( $r['body'], '90 Tagen gelöscht' ) );
+t( 'Datenschutz-Checkbox ist Pflicht', (bool) preg_match( '/name="ll16_privacy"[^>]*required/', $r['body'] ) );
+t( 'Kein reCAPTCHA, Honeypot vorhanden', ! str_contains( $r['body'], 'recaptcha' ) && str_contains( $r['body'], 'name="ll16_website"' ) );
+t( 'Seite nicht cachebar', str_contains( strtolower( (string) $r['headers']['cache-control'] ), 'no-cache' ) );
+$ts_tok = hidden( $r['body'], 'll16_ts' );
+$post   = fn( array $o = [] ) => http( 'POST', '/kontakt-test/', array_merge( [ 'll16_form' => 'contact', 'll16_ts' => $ts_tok, 'll16_name' => 'Max', 'll16_email' => 'max@example.com', 'll16_message' => 'Hallo <b>Welt</b>', 'll16_privacy' => '1', 'll16_website' => '' ], $o ), $jar );
+$x = $post();
+t( 'Sofort absenden (Zeitprüfung) wird abgelehnt', str_contains( $x['body'], 'erneut' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tc}" ) );
+sleep( 4 );
+t( 'Honeypot → abgelehnt', str_contains( $post( [ 'll16_website' => 'x' ] )['body'], 'konnte nicht verarbeitet' ) );
+t( 'Ohne Datenschutz-Haken → abgelehnt', str_contains( $post( [ 'll16_privacy' => '' ] )['body'], 'Datenschutzhinweis' ) );
+t( 'Ungültige E-Mail → abgelehnt', str_contains( $post( [ 'll16_email' => 'x' ] )['body'], 'Pflichtfelder' ) );
+t( 'Bis hierhin nichts gespeichert', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tc}" ) );
+$x = $post();
+t( 'Gültige Anfrage: Bestätigung', str_contains( $x['body'], 'angekommen' ), substr( wp_strip_all_tags( $x['body'] ), 0, 100 ) );
+$row = $wpdb->get_row( "SELECT * FROM {$tc}", ARRAY_A );
+t( 'Gespeichert (HTML bereinigt)', $row && 'Max' === $row['name'] && ! str_contains( $row['message'], '<b>' ) );
+$m = array_values( array_filter( mails(), fn( $m ) => str_starts_with( $m['subject'], 'Kontaktanfrage' ) ) )[0] ?? [];
+t( 'Mail an Stammdaten-Adresse', 'sven@lindenweg16.de' === ( $m['to'] ?? '' ) );
+t( 'Automatische Löschung nach Frist', ( function () use ( $wpdb, $tc ) {
+	$wpdb->query( $wpdb->prepare( "UPDATE {$tc} SET created_at=%s", gmdate( 'Y-m-d H:i:s', time() - 200 * DAY_IN_SECONDS ) ) );
+	Forms::purge();
+	return 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tc}" );
+} )() );
+
+section( 'Newsletter: Double-Opt-in' );
+$jar2 = [];
+$r    = http( 'GET', '/newsletter-test/', [], $jar2 );
+t( 'Formular mit Einwilligungstext & Datenschutzlink', str_contains( $r['body'], 'Double-Opt-in' ) && str_contains( $r['body'], '/datenschutz/' ) );
+$tok = hidden( $r['body'], 'll16_ts' );
+sleep( 4 );
+clear_mails();
+$nl = fn( array $o = [] ) => http( 'POST', '/newsletter-test/', array_merge( [ 'll16_form' => 'newsletter', 'll16_ts' => $tok, 'll16_email' => 'abo@example.com', 'll16_consent' => '1', 'll16_website' => '' ], $o ), $jar2 );
+t( 'Ohne Einwilligung → nichts passiert', str_contains( $nl( [ 'll16_consent' => '' ] )['body'], 'stimme zu' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts}" ) );
+t( 'Anmeldung → „Bestätigungslink“', str_contains( $nl()['body'], 'Bestätigungslink' ) );
+$sub = $wpdb->get_row( "SELECT * FROM {$ts} WHERE email='abo@example.com'", ARRAY_A );
+t( 'Status pending, Token nur als Hash gespeichert', 'pending' === ( $sub['status'] ?? '' ) && 64 === strlen( (string) ( $sub['token_hash'] ?? '' ) ) );
+t( 'Einwilligungstext-Version & Zeit protokolliert', 1 === (int) ( $sub['text_version'] ?? 0 ) && ! empty( $sub['created_at'] ) );
+$mail = mails()[0] ?? [];
+t( 'Bestätigungsmail an den Anmelder', 'abo@example.com' === ( $mail['to'] ?? '' ) );
+preg_match( '#(https?://[^\s]+ll16_nl=confirm[^\s]+)#', $mail['message'] ?? '', $mm );
+$link = html_entity_decode( $mm[1] ?? '' );
+t( 'Bestätigungslink in der Mail', '' !== $link );
+$path = str_replace( home_url(), '', $link );
+$bad  = http( 'GET', preg_replace( '/&t=[^&]+/', '&t=falsch', $path ) );
+t( 'Falscher Token bestätigt nicht', str_contains( $bad['body'], 'ungültig' ) && 'pending' === $wpdb->get_var( "SELECT status FROM {$ts} WHERE email='abo@example.com'" ) );
+$ok = http( 'GET', $path );
+t( 'Richtiger Link bestätigt', str_contains( $ok['body'], 'bestätigt' ) && 'confirmed' === $wpdb->get_var( "SELECT status FROM {$ts} WHERE email='abo@example.com'" ) );
+t( 'Bestätigungszeitpunkt gespeichert', (bool) $wpdb->get_var( "SELECT confirmed_at FROM {$ts} WHERE email='abo@example.com'" ) );
+$again = http( 'GET', $path );
+t( 'Link ist nicht wiederverwendbar', str_contains( $again['body'], 'ungültig' ) );
+clear_mails();
+$nl();
+t( 'Erneute Anmeldung bei bestehendem Abo: keine Mail, keine Auskunft', [] === mails() );
+t( 'Abmeldelink: gültig', ( function () use ( $wpdb, $ts ) {
+	$u = Forms::unsubscribe_url( 'abo@example.com' );
+	$r = http( 'GET', str_replace( home_url(), '', $u ) );
+	return str_contains( $r['body'], 'abgemeldet' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='abo@example.com'" );
+} )() );
+$u = Forms::unsubscribe_url( 'other@example.com' );
+$wpdb->insert( $ts, [ 'email' => 'other@example.com', 'token_hash' => str_repeat( 'a', 64 ), 'status' => 'confirmed', 'text_version' => 1, 'created_at' => gmdate( 'Y-m-d H:i:s' ) ] );
+http( 'GET', str_replace( home_url(), '', preg_replace( '/&s=[^&]+/', '&s=gefaelscht', $u ) ) );
+t( 'Gefälschter Abmeldelink löscht nicht', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='other@example.com'" ) );
+$wpdb->insert( $ts, [ 'email' => 'alt@example.com', 'token_hash' => str_repeat( 'b', 64 ), 'status' => 'pending', 'text_version' => 1, 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 5 * DAY_IN_SECONDS ) ] );
+Forms::purge();
+t( 'Unbestätigte Anmeldungen werden nach 48 h gelöscht', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='alt@example.com'" ) );
+t( 'Bestätigte bleiben', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='other@example.com'" ) );
+
+section( 'Benachrichtige mich' );
+$prod = wc_get_products( [ 'limit' => 1 ] )[0];
+$GLOBALS['post'] = get_post( $prod->get_id() );
+$html = Forms::notify_form( [ 'product' => $prod->get_id() ] );
+t( 'Formular mit Zweckbindung', str_contains( $html, 'einmalig' ) && str_contains( $html, 'danach gelöscht' ) );
+$wpdb->insert( $tn, [ 'product_id' => $prod->get_id(), 'email' => 'wartet@example.com', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ] );
+clear_mails();
+Forms::on_stock( $prod->get_id(), 'outofstock', $prod );
+t( 'Kein Versand bei „nicht auf Lager“', [] === mails() );
+Forms::on_stock( $prod->get_id(), 'instock', $prod );
+$m = mails();
+t( 'Einmalige Mail bei Verfügbarkeit', 1 === count( $m ) && 'wartet@example.com' === $m[0]['to'] );
+t( 'Danach gelöscht (Zweckbindung)', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tn}" ) );
+
+section( 'DSGVO: Export & Löschung (WP-Privacy-Tools)' );
+$wpdb->insert( $tc, [ 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'name' => 'Priv', 'email' => 'priv@example.com', 'message' => 'Nachricht' ] );
+$wpdb->insert( $ts, [ 'email' => 'priv@example.com', 'token_hash' => str_repeat( 'c', 64 ), 'status' => 'confirmed', 'text_version' => 1, 'created_at' => gmdate( 'Y-m-d H:i:s' ) ] );
+$exp = apply_filters( 'wp_privacy_personal_data_exporters', [] );
+t( 'Exporter registriert', isset( $exp['ll16-legal'] ) );
+$out = Forms::export( 'priv@example.com' );
+t( 'Export liefert Kontakt + Newsletter', 2 === count( $out['data'] ) );
+t( 'Export enthält keine fremden Daten', 0 === count( Forms::export( 'niemand@example.com' )['data'] ) );
+$er = apply_filters( 'wp_privacy_personal_data_erasers', [] );
+t( 'Eraser registriert', isset( $er['ll16-legal'] ) );
+$res = Forms::erase( 'priv@example.com' );
+t( 'Löschung entfernt Daten', $res['items_removed'] && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tc} WHERE email='priv@example.com'" ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='priv@example.com'" ) );
+// WordPress-eigener Ablauf (Export-Request über Tools → Privacy)
+$req = wp_create_user_request( 'priv2@example.com', 'export_personal_data' );
+t( 'WP-Privacy-Request anlegbar', ! is_wp_error( $req ) );
+
+section( 'Aufbewahrung Bestelldaten' );
+$old = wc_create_order();
+$old->set_billing_first_name( 'Alt' );
+$old->set_billing_email( 'alt@kunde.de' );
+$old->set_date_created( strtotime( '-10 years' ) );
+$old->save();
+\Lindenweg16\Legal\Forms\Retention::anonymize_old_orders();
+wp_cache_flush();
+t( 'Standard: ohne Freigabe wird NICHTS anonymisiert', 'Alt' === wc_get_order( $old->get_id() )->get_billing_first_name() );
+update_option( 'll16_settings', [ 'retention_anonymize' => true ] );
+\Lindenweg16\Legal\Forms\Retention::anonymize_old_orders();
+wp_cache_flush();
+$o = wc_get_order( $old->get_id() );
+t( 'Mit Freigabe: alte Bestellung anonymisiert', 'anonymisiert' === $o->get_billing_first_name() && 'anonymisiert@invalid.example' === $o->get_billing_email() );
+$new = wc_create_order();
+$new->set_billing_first_name( 'Neu' );
+$new->save();
+\Lindenweg16\Legal\Forms\Retention::anonymize_old_orders();
+wp_cache_flush();
+t( 'Neue Bestellung bleibt unberührt', 'Neu' === wc_get_order( $new->get_id() )->get_billing_first_name() );
+delete_option( 'll16_settings' );
+
+finish();

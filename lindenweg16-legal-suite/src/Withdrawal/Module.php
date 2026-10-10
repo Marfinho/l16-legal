@@ -117,11 +117,11 @@ final class Module {
 		$h .= '<form method="post" action="' . esc_url( home_url( '/vertrag-widerrufen/' ) ) . '">';
 		$h .= '<input type="hidden" name="ll16_step" value="review">';
 		$h .= '<input type="hidden" name="ll16_ts" value="' . esc_attr( Token::sign( [], $ts, self::secret() ) ) . '">';
-		$h .= '<p><label>Dein Name *<br><input type="text" name="name" required autocomplete="name" value="' . esc_attr( $v['name'] ) . '"></label></p>';
-		$h .= '<p><label>Bestellnummer (Vertragskennung) *<br><input type="text" name="order" required inputmode="numeric" value="' . esc_attr( $v['order'] ) . '"></label></p>';
-		$h .= '<p><label>E-Mail-Adresse für die Bestätigung *<br><input type="email" name="email" required autocomplete="email" value="' . esc_attr( $v['email'] ) . '"></label></p>';
-		$h .= '<p><label>Nur einen Teil widerrufen? Welche Artikel (leer = ganze Bestellung)<br><input type="text" name="scope" maxlength="300" value="' . esc_attr( $v['scope'] ) . '"></label></p>';
-		$h .= '<div style="position:absolute;left:-9999px" aria-hidden="true"><label>Bitte leer lassen<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>';
+		$h .= '<p><label>Dein Name *<br><input type="text" name="ll16_name" required autocomplete="name" value="' . esc_attr( $v['name'] ) . '"></label></p>';
+		$h .= '<p><label>Bestellnummer (Vertragskennung) *<br><input type="text" name="ll16_order" required inputmode="numeric" value="' . esc_attr( $v['order'] ) . '"></label></p>';
+		$h .= '<p><label>E-Mail-Adresse für die Bestätigung *<br><input type="email" name="ll16_email" required autocomplete="email" value="' . esc_attr( $v['email'] ) . '"></label></p>';
+		$h .= '<p><label>Nur einen Teil widerrufen? Welche Artikel (leer = ganze Bestellung)<br><input type="text" name="ll16_scope" maxlength="300" value="' . esc_attr( $v['scope'] ) . '"></label></p>';
+		$h .= '<div style="position:absolute;left:-9999px" aria-hidden="true"><label>Bitte leer lassen<input type="text" name="ll16_website" tabindex="-1" autocomplete="off"></label></div>';
 		$h .= '<p><button type="submit" class="button wp-element-button">Weiter</button></p>';
 		$h .= '</form></div>';
 		return $h;
@@ -133,10 +133,10 @@ final class Module {
 	private static function read_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification
 		return [
-			'name'  => sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) ),
-			'order' => sanitize_text_field( wp_unslash( $_POST['order'] ?? '' ) ),
-			'email' => sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ),
-			'scope' => sanitize_text_field( wp_unslash( $_POST['scope'] ?? '' ) ),
+			'name'  => sanitize_text_field( wp_unslash( $_POST['ll16_name'] ?? '' ) ),
+			'order' => sanitize_text_field( wp_unslash( $_POST['ll16_order'] ?? '' ) ),
+			'email' => sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ),
+			'scope' => sanitize_text_field( wp_unslash( $_POST['ll16_scope'] ?? '' ) ),
 		];
 		// phpcs:enable
 	}
@@ -144,7 +144,7 @@ final class Module {
 	private static function step_review(): string {
 		$in     = self::read_input();
 		$errors = [];
-		if ( '' !== (string) ( $_POST['website'] ?? '' ) ) { // phpcs:ignore WordPress.Security
+		if ( '' !== (string) ( $_POST['ll16_website'] ?? '' ) ) { // phpcs:ignore WordPress.Security
 			return self::form_html( $in, [ 'Die Anfrage konnte nicht verarbeitet werden.' ] );
 		}
 		if ( '' === $in['name'] ) {
