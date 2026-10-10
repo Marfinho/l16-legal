@@ -56,7 +56,17 @@ final class Page {
 		// phpcs:disable WordPress.Security.NonceVerification
 		switch ( $tab ) {
 			case 'master':
-				update_option( Masterdata::OPTION, Masterdata::sanitize( wp_unslash( (array) ( $_POST['m'] ?? [] ) ) ) );
+				$checked = Masterdata::check( Masterdata::sanitize( wp_unslash( (array) ( $_POST['m'] ?? [] ) ) ) );
+				$values  = $checked['values'];
+				$old     = Masterdata::all();
+				foreach ( array_keys( $checked['errors'] ) as $field ) {
+					$values[ $field ] = $old[ $field ]; // ungültige Eingabe nicht übernehmen, alten Wert behalten
+				}
+				update_option( Masterdata::OPTION, $values );
+				if ( $checked['errors'] ) {
+					set_transient( 'll16_master_errors_' . get_current_user_id(), $checked['errors'], 300 );
+					self::back( 'master', 'Teilweise gespeichert: ' . count( $checked['errors'] ) . ' Feld(er) nicht übernommen (siehe Hinweise).' );
+				}
 				break;
 			case 'modules':
 				$flags = [];
@@ -81,6 +91,7 @@ final class Page {
 						'contact_retention_days' => max( 7, (int) ( $in['contact_retention_days'] ?? 90 ) ),
 						'hsts_max_age'           => max( 0, (int) ( $in['hsts_max_age'] ?? 604800 ) ),
 						'hsts_subdomains'        => ! empty( $in['hsts_subdomains'] ),
+						'footer_links'           => ! empty( $in['footer_links'] ),
 						'newsletter_enabled'     => ! empty( $in['newsletter_enabled'] ),
 						'notify_enabled'         => ! empty( $in['notify_enabled'] ),
 						'retention_anonymize'    => ! empty( $in['retention_anonymize'] ),
@@ -195,7 +206,17 @@ final class Page {
 	}
 
 	private function tab_master(): void {
-		$m = Masterdata::all();
+		$m      = Masterdata::all();
+		$errors = get_transient( 'll16_master_errors_' . get_current_user_id() );
+		$errors = is_array( $errors ) ? $errors : [];
+		delete_transient( 'll16_master_errors_' . get_current_user_id() );
+		if ( $errors ) {
+			echo '<div class="notice notice-error inline"><p><strong>Nicht übernommen (alter Wert bleibt):</strong></p><ul style="list-style:disc;margin-left:1.5rem">';
+			foreach ( $errors as $f => $msg ) {
+				echo '<li><code>' . esc_html( (string) $f ) . '</code>: ' . esc_html( (string) $msg ) . '</li>';
+			}
+			echo '</ul></div>';
+		}
 		$this->form_open( 'master' );
 		echo '<table class="form-table">';
 		$labels = [
@@ -261,7 +282,7 @@ final class Page {
 			echo '</ul>';
 		}
 		echo '<p>Erzeugt/aktualisiert die Seiten aus Stammdaten und Dienste-Register. Neue Seiten bleiben Entwurf. Veröffentlichen geht nur, wenn der Platzhalter-Linter sauber ist. Bestehende Seiten gleichen Namens (z. B. <code>vertrag-widerrufen</code>) werden überschrieben.</p>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="ll16_sync_pages">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" onsubmit="return confirm(\'Bestehende Seiten mit diesen Adressen werden überschrieben (frühere Fassungen bleiben als Revision erhalten). Fortfahren?\');"><input type="hidden" name="action" value="ll16_sync_pages">';
 		wp_nonce_field( 'll16_sync_pages' );
 		echo '<p><label><input type="checkbox" name="publish" value="1"> Wenn der Linter sauber ist, direkt veröffentlichen</label></p>';
 		submit_button( 'Seiten erzeugen/aktualisieren' );
@@ -298,6 +319,7 @@ final class Page {
 		printf( '<tr><th>Kontaktanfragen Aufbewahrung (Tage)</th><td><input type="number" name="s[contact_retention_days]" value="%d"></td></tr>', (int) ( $s['contact_retention_days'] ?? 90 ) );
 		printf( '<tr><th>HSTS max-age (Sekunden)</th><td><input type="number" name="s[hsts_max_age]" value="%d"><p class="description">Start: 604800 (1 Woche). Erst nach Beobachtung auf 31536000 erhöhen.</p></td></tr>', (int) ( $s['hsts_max_age'] ?? 604800 ) );
 		printf( '<tr><th>HSTS Subdomains</th><td><label><input type="checkbox" name="s[hsts_subdomains]" value="1" %s> includeSubDomains</label></td></tr>', checked( ! empty( $s['hsts_subdomains'] ), true, false ) );
+		printf( '<tr><th>Footer-Links ausgeben</th><td><label><input type="checkbox" name="s[footer_links]" value="1" %s> Impressum, Datenschutz, AGB, Widerruf, „Vertrag widerrufen“, Cookie-Einstellungen. Abschalten, wenn das Theme diese Links selbst setzt.</label></td></tr>', checked( ! isset( $s['footer_links'] ) || ! empty( $s['footer_links'] ), true, false ) );
 		printf( '<tr><th>Newsletter aktiv</th><td><label><input type="checkbox" name="s[newsletter_enabled]" value="1" %s> (erscheint dann in der Datenschutzerklärung)</label></td></tr>', checked( ! empty( $s['newsletter_enabled'] ), true, false ) );
 		printf( '<tr><th>„Benachrichtige mich" aktiv</th><td><label><input type="checkbox" name="s[notify_enabled]" value="1" %s></label></td></tr>', checked( ! empty( $s['notify_enabled'] ), true, false ) );
 		printf( '<tr><th>Bestelldaten nach Frist anonymisieren</th><td><label><input type="checkbox" name="s[retention_anonymize]" value="1" %s> unwiderruflich! Erst nach Abstimmung mit Steuerberater einschalten.</label></td></tr>', checked( ! empty( $s['retention_anonymize'] ), true, false ) );

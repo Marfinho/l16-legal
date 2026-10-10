@@ -46,6 +46,10 @@ final class Texts {
 			// Bewusst nur setzen, wenn gepflegt: sonst bleibt {{payment_methods_text}} stehen und der Linter blockiert.
 			$vars['payment_methods_text'] = implode( ', ', (array) $m['payment_methods'] );
 		}
+		$vars['html_email_link']      = '<a href="mailto:' . esc_attr( (string) $m['email'] ) . '">' . esc_html( (string) $m['email'] ) . '</a>';
+		$tel                          = (string) preg_replace( '/\D/', '', (string) $m['phone'] );
+		$tel                          = str_starts_with( $tel, '0' ) ? '+49' . substr( $tel, 1 ) : '+' . ltrim( $tel, '+' );
+		$vars['html_phone_link']      = '<a href="tel:' . esc_attr( $tel ) . '">' . esc_html( (string) $m['phone'] ) . '</a>';
 		$vars['html_withdrawal_page'] = esc_url( home_url( '/widerruf/' ) );
 		$vars['html_withdrawal_url']  = esc_url( home_url( '/vertrag-widerrufen/' ) );
 		$vars['html_shipping_page']   = esc_url( home_url( '/versand-zahlung/' ) );

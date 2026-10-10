@@ -48,6 +48,7 @@ if ! $W core is-installed 2>/dev/null; then
 fi
 $W option update home http://127.0.0.1:$PORT >/dev/null; $W option update siteurl http://127.0.0.1:$PORT >/dev/null
 $W plugin activate woocommerce lindenweg16-legal-suite
+$W language core install de_DE >/dev/null 2>&1 && $W language plugin install woocommerce de_DE >/dev/null 2>&1 && $W site switch-language de_DE >/dev/null 2>&1 || echo 'Hinweis: Deutsche Sprachpakete nicht installiert (Tests laufen dann auf Englisch)'
 $W rewrite structure '/%postname%/' >/dev/null
 $W option update woocommerce_coming_soon no >/dev/null
 $W option update woocommerce_store_pages_only no >/dev/null

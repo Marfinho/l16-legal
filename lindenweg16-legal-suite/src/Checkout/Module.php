@@ -23,6 +23,9 @@ final class Module {
 		add_filter( 'woocommerce_add_to_cart_validation', [ self::class, 'validate_selection' ], 10, 3 );
 		add_filter( 'woocommerce_get_item_data', [ self::class, 'item_delivery_time' ], 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', [ self::class, 'validate_individual_ack' ], 10, 2 );
+		add_filter( 'woocommerce_terms_and_conditions_page_id', [ self::class, 'terms_page' ] );
+		add_filter( 'woocommerce_privacy_policy_page_id', [ self::class, 'privacy_page' ] );
+		add_filter( 'woocommerce_get_terms_and_conditions_checkbox_text', [ self::class, 'terms_checkbox_text' ] );
 		add_action( 'admin_notices', [ self::class, 'test_mode_notice' ] );
 	}
 
@@ -179,6 +182,28 @@ final class Module {
 		if ( ! $ack ) {
 			throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException( 'll16_individual_ack', 'Bitte bestätige den Hinweis zum Ausschluss des Widerrufsrechts bei individuell angefertigten Waren.', 400 );
 		}
+	}
+
+	private static function page_id( string $slug ): int {
+		$p = get_page_by_path( $slug, OBJECT, 'page' );
+		return ( $p instanceof \WP_Post && 'publish' === $p->post_status ) ? (int) $p->ID : 0;
+	}
+
+	/** WooCommerce soll auf unsere AGB-/Datenschutzseiten verweisen (Block-Hinweistext und klassische Pflicht-Checkbox). */
+	public static function terms_page( $id ) {
+		return self::page_id( 'agb' ) ?: $id;
+	}
+
+	public static function privacy_page( $id ) {
+		return self::page_id( 'datenschutz' ) ?: $id;
+	}
+
+	/** Klassischer Checkout: Pflicht-Checkbox mit Links zu AGB, Widerrufsbelehrung und Datenschutz. */
+	public static function terms_checkbox_text( $text ) {
+		return sprintf(
+			'Ich habe die [terms], die <a href="%s" target="_blank" rel="noopener">Widerrufsbelehrung</a> und die [privacy_policy] gelesen und akzeptiere die AGB.',
+			esc_url( home_url( '/widerruf/' ) )
+		);
 	}
 
 	public static function test_mode_notice(): void {

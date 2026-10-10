@@ -9,7 +9,7 @@ test('Checkout: Button, Hinweise, nur Deutschland, kein Testkarten-Hinweis', asy
   await expect(page.getByText(/Widerrufsbelehrung/).first()).toBeVisible();
   await expect(page.getByText(/Testkarte|Testmodus/i)).toHaveCount(0);
   const countries = await page.locator('select[id$="country"] option').allTextContents();
-  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual(['Germany']);
+  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual([expect.stringMatching(/^(Germany|Deutschland)$/)]);
 });
 
 test('Widerruf: zweistufig, ohne Login', async ({ page }) => {

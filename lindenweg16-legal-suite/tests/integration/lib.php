@@ -75,3 +75,11 @@ function make_page( string $slug, string $title, string $content ): int {
 	$id = wp_insert_post( $args );
 	return (int) $id;
 }
+
+/** Rate-Limit- und Wiederholungsschutz-Transients zurücksetzen (Tests sind sonst nicht wiederholbar). */
+function reset_ratelimits(): void {
+	global $wpdb;
+	// phpcs:ignore WordPress.DB
+	$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient\\_ll16\\_rl\\_%' OR option_name LIKE '\\_transient\\_timeout\\_ll16\\_rl\\_%' OR option_name LIKE '\\_transient\\_ll16\\_wd\\_%' OR option_name LIKE '\\_transient\\_timeout\\_ll16\\_wd\\_%'" );
+	wp_cache_flush();
+}

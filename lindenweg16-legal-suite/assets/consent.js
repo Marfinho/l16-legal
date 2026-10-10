@@ -206,8 +206,10 @@
 			var b = ev.target.closest && ev.target.closest('[data-ll16-load]');
 			if (b) { loadEmbed(b.closest('[data-ll16-embed]')); } // Zwei-Klick: nur dieser Inhalt, ohne Dauer-Einwilligung
 		});
-		var fl = el('button', { type: 'button', class: 'll16-float', 'data-ll16-open': '', text: 'Cookie-Einstellungen' });
-		document.body.appendChild(fl);
+		// Fallback: nur wenn keine Footer-Verknüpfung „Cookie-Einstellungen“ existiert (z. B. Footer-Links abgeschaltet).
+		if (!document.querySelector('a[data-ll16-open], .ll16-settings-link')) {
+			document.body.appendChild(el('button', { type: 'button', class: 'll16-float', 'data-ll16-open': '', text: 'Cookie-Einstellungen' }));
+		}
 		if (state) { cleanCookies(); activateScripts(); } else { openBanner(false); }
 	}
 

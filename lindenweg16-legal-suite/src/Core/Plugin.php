@@ -34,6 +34,8 @@ final class Plugin {
 
 		( new Admin\Page() )->register();
 		Updater::maybe_upgrade();
+		Assets::init();
+		FooterLinks::init();
 
 		$flags = Modules::flags();
 		foreach ( self::MODULES as $key => $class ) {

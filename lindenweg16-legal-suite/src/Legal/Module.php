@@ -15,6 +15,7 @@ final class Module {
 	public static function init(): void {
 		add_action( 'template_redirect', [ self::class, 'redirects' ], 1 );
 		add_action( 'admin_post_ll16_sync_pages', [ self::class, 'handle_sync' ] );
+		add_action( 'll16_daily', [ self::class, 'cleanup_attachments' ] );
 		add_action( 'woocommerce_checkout_order_created', [ self::class, 'snapshot_order' ] );
 		add_action( 'woocommerce_store_api_checkout_order_processed', [ self::class, 'snapshot_order' ] );
 		add_filter( 'woocommerce_email_attachments', [ self::class, 'attach_snapshot' ], 10, 4 );
@@ -205,12 +206,23 @@ final class Module {
 			$html .= '<h1>' . esc_html( (string) $t['title'] ) . '</h1>' . wp_kses_post( (string) $t['html'] );
 		}
 		$html .= '<hr><p>Stand bei Bestellung: ' . esc_html( (string) $snap['created'] ) . '</p></body></html>';
-		$dir  = trailingslashit( get_temp_dir() );
+		$dir = trailingslashit( get_temp_dir() );
+		self::cleanup_attachments( $dir );
 		$file = $dir . 'vertragsbedingungen-' . sanitize_file_name( (string) $object->get_order_number() ) . '.html';
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		if ( false !== file_put_contents( $file, $html ) ) {
 			$attachments[] = $file;
 		}
 		return $attachments;
+	}
+
+	/** Löscht übrig gebliebene Anhänge (E-Mail-Versand kann verzögert laufen, daher erst nach einer Stunde). */
+	public static function cleanup_attachments( ?string $dir = null ): void {
+		$dir = $dir ?: trailingslashit( get_temp_dir() );
+		foreach ( (array) glob( $dir . 'vertragsbedingungen-*.html' ) as $f ) {
+			if ( is_file( $f ) && filemtime( $f ) < time() - HOUR_IN_SECONDS ) {
+				@unlink( $f ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.unlink_unlink
+			}
+		}
 	}
 }

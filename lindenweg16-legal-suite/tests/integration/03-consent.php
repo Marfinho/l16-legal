@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/lib.php';
 global $wpdb;
+reset_ratelimits();
 $jar = [];
 
 section( 'Consent: Auslieferung' );

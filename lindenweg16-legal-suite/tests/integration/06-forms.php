@@ -9,6 +9,7 @@ $tn = $wpdb->prefix . 'll16_notify';
 foreach ( [ $tc, $ts, $tn ] as $t ) {
 	$wpdb->query( "DELETE FROM {$t}" );
 }
+reset_ratelimits();
 clear_mails();
 make_page( 'kontakt-test', 'Kontakt', '[ll16_contact]' );
 make_page( 'newsletter-test', 'Newsletter', '[ll16_newsletter]' );
@@ -50,7 +51,7 @@ $tok = hidden( $r['body'], 'll16_ts' );
 sleep( 4 );
 clear_mails();
 $nl = fn( array $o = [] ) => http( 'POST', '/newsletter-test/', array_merge( [ 'll16_form' => 'newsletter', 'll16_ts' => $tok, 'll16_email' => 'abo@example.com', 'll16_consent' => '1', 'll16_website' => '' ], $o ), $jar2 );
-t( 'Ohne Einwilligung → nichts passiert', str_contains( $nl( [ 'll16_consent' => '' ] )['body'], 'stimme zu' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts}" ) );
+t( 'Ohne Einwilligung → nichts passiert', str_contains( $nl( [ 'll16_consent' => '' ] )['body'], 'Einwilligung' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts}" ) );
 t( 'Anmeldung → „Bestätigungslink“', str_contains( $nl()['body'], 'Bestätigungslink' ) );
 $sub = $wpdb->get_row( "SELECT * FROM {$ts} WHERE email='abo@example.com'", ARRAY_A );
 t( 'Status pending, Token nur als Hash gespeichert', 'pending' === ( $sub['status'] ?? '' ) && 64 === strlen( (string) ( $sub['token_hash'] ?? '' ) ) );
@@ -112,7 +113,8 @@ t( 'Eraser registriert', isset( $er['ll16-legal'] ) );
 $res = Forms::erase( 'priv@example.com' );
 t( 'Löschung entfernt Daten', $res['items_removed'] && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tc} WHERE email='priv@example.com'" ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$ts} WHERE email='priv@example.com'" ) );
 // WordPress-eigener Ablauf (Export-Request über Tools → Privacy)
-$req = wp_create_user_request( 'priv2@example.com', 'export_personal_data' );
+$mailx = 'priv-' . wp_generate_password( 6, false ) . '@example.com';
+$req = wp_create_user_request( $mailx, 'export_personal_data' );
 t( 'WP-Privacy-Request anlegbar', ! is_wp_error( $req ) );
 
 section( 'Aufbewahrung Bestelldaten' );

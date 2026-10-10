@@ -147,6 +147,12 @@ final class Module {
 	}
 
 	public static function rest_log( \WP_REST_Request $req ): \WP_REST_Response {
+		if ( ! \Lindenweg16\Legal\Core\Ratelimit::hit( 'consent', \Lindenweg16\Legal\Core\Ratelimit::client_key(), 60, MINUTE_IN_SECONDS ) ) {
+			$res = new \WP_REST_Response( [ 'ok' => false, 'error' => 'rate_limited' ], 429 );
+			$res->header( 'Cache-Control', 'no-store' );
+			$res->header( 'Retry-After', '60' );
+			return $res;
+		}
 		$ok = ConsentLog::record(
 			(string) $req['id'],
 			(string) $req['action'],

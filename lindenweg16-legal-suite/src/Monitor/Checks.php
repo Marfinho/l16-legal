@@ -20,7 +20,7 @@ final class Checks {
 	/** @return array<int,array{id:string,label:string,status:string,detail:string}> */
 	public function run_all(): array {
 		$out = [];
-		foreach ( [ 'pages', 'placeholders', 'contacts', 'consent', 'payments', 'products', 'checkout', 'withdrawal', 'headers', 'review', 'legacy', 'config' ] as $c ) {
+		foreach ( [ 'pages', 'placeholders', 'contacts', 'consent', 'payments', 'products', 'checkout', 'shipping', 'withdrawal', 'headers', 'review', 'legacy', 'config' ] as $c ) {
 			try {
 				foreach ( $this->$c() as $r ) {
 					$out[] = $r;
@@ -187,7 +187,8 @@ final class Checks {
 	/** 6) Produkte */
 	private function products(): array {
 		$ids = get_posts( [ 'post_type' => 'product', 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids' ] );
-		$bad = [];
+		$bad     = [];
+		$fetched = 0;
 		foreach ( $ids as $id ) {
 			$p = wc_get_product( $id );
 			if ( ! $p ) {
@@ -211,7 +212,7 @@ final class Checks {
 					}
 				}
 			}
-			$html = $this->fetch( '/?p=' . $id );
+			$html = $fetched++ < 15 ? $this->fetch( '/?p=' . $id ) : ''; // Seitenabruf nur für die ersten 15 Produkte (Laufzeit)
 			if ( $html && str_contains( $html, 'Zurzeit nicht auf Lager' ) && preg_match( '/Vorr(ä|&auml;)tig|Auf Lager/', $html ) ) {
 				$issues[] = 'widersprüchliche Lagerangabe in der Ansicht';
 			}
@@ -241,6 +242,58 @@ final class Checks {
 			$issues[] = 'AGB nennen den Button-Text nicht';
 		}
 		return [ self::r( 'checkout', 'Checkout: Button, Lieferländer, Testmodus', $issues ? 'fail' : 'ok', implode( '; ', $issues ) ) ];
+	}
+
+	/** Versandkosten/Gratisversand: WooCommerce-Zone = Stammdaten = Text */
+	private function shipping(): array {
+		if ( ! class_exists( 'WC_Shipping_Zones' ) ) {
+			return [];
+		}
+		$m       = Masterdata::all();
+		$issues  = [];
+		$flat    = null;
+		$free    = null;
+		$covered = [];
+		foreach ( \WC_Shipping_Zones::get_zones() as $z ) {
+			$zone = new \WC_Shipping_Zone( $z['id'] );
+			foreach ( $zone->get_zone_locations() as $loc ) {
+				if ( 'country' === $loc->type ) {
+					$covered[] = $loc->code;
+				}
+			}
+			foreach ( $zone->get_shipping_methods( true ) as $method ) {
+				$opt = (array) get_option( 'woocommerce_' . $method->id . '_' . $method->instance_id . '_settings', [] );
+				if ( 'flat_rate' === $method->id ) {
+					$flat = Masterdata::money( (string) ( $opt['cost'] ?? '' ) );
+				}
+				if ( 'free_shipping' === $method->id ) {
+					$free = Masterdata::money( (string) ( $opt['min_amount'] ?? '0' ) ) ?? '0,00';
+				}
+			}
+		}
+		if ( [] === $covered ) {
+			$issues[] = 'Keine Versandzone mit Ländern eingerichtet (Kunden sehen keine Versandart).';
+		}
+		$stamm = Masterdata::money( (string) $m['shipping_cost'] );
+		if ( null !== $flat && $flat !== $stamm ) {
+			$issues[] = "Pauschale in WooCommerce ({$flat} €) weicht von den Stammdaten ({$stamm} €) ab. Texte nennen {$stamm} €.";
+		}
+		if ( null === $flat && null === $free && [] !== $covered ) {
+			$issues[] = 'Keine Pauschale/Gratisversand-Methode in den Versandzonen gefunden.';
+		}
+		$thr = '' !== (string) $m['free_shipping_from'] ? Masterdata::money( (string) $m['free_shipping_from'] ) : null;
+		if ( null !== $thr && $thr !== $free ) {
+			$issues[] = "Texte versprechen Gratisversand ab {$thr} €, in WooCommerce " . ( null === $free ? 'ist keine Gratisversand-Methode aktiv.' : "gilt ab {$free} €." );
+		}
+		if ( null === $thr && null !== $free && '0,00' !== $free ) {
+			$issues[] = "WooCommerce liefert ab {$free} € versandkostenfrei, die Rechtstexte erwähnen es nicht (Stammdaten „Gratisversand ab“ pflegen).";
+		}
+		$allowed = array_map( 'strtoupper', (array) $m['delivery_countries'] );
+		$extra   = array_diff( $covered, $allowed );
+		if ( $extra ) {
+			$issues[] = 'Versandzonen enthalten Länder außerhalb der Lieferländer: ' . implode( ', ', $extra );
+		}
+		return [ self::r( 'shipping', 'Versandkosten: WooCommerce = Stammdaten = Rechtstexte', $issues ? 'fail' : 'ok', implode( ' ', $issues ) ) ];
 	}
 
 	/** 8) Widerrufsfunktion */

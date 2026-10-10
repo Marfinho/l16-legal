@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Lindenweg16\Legal\Forms;
 
+use Lindenweg16\Legal\Core\Assets;
 use Lindenweg16\Legal\Core\Masterdata;
+use Lindenweg16\Legal\Core\Ratelimit;
 use Lindenweg16\Legal\Withdrawal\Token;
 
 /**
@@ -102,61 +104,84 @@ final class Module {
 
 	public static function contact_form(): string {
 		self::nocache();
+		Assets::force_forms();
 		$msg = '';
+		$v   = [ 'name' => '', 'email' => '', 'message' => '' ];
 		if ( self::posted( 'contact' ) ) {
 			$err = self::guard();
 			// phpcs:disable WordPress.Security.NonceVerification
-			$name  = sanitize_text_field( wp_unslash( $_POST['ll16_name'] ?? '' ) );
-			$email = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) );
-			$text  = sanitize_textarea_field( wp_unslash( $_POST['ll16_message'] ?? '' ) );
+			$v     = [
+				'name'    => sanitize_text_field( wp_unslash( $_POST['ll16_name'] ?? '' ) ),
+				'email'   => sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ),
+				'message' => sanitize_textarea_field( wp_unslash( $_POST['ll16_message'] ?? '' ) ),
+			];
 			$ok    = ! empty( $_POST['ll16_privacy'] );
 			// phpcs:enable
-			if ( null === $err && ( '' === $name || ! is_email( $email ) || '' === $text ) ) {
-				$err = 'Bitte fülle alle Pflichtfelder aus.';
+			if ( null === $err && ( '' === $v['name'] || ! is_email( $v['email'] ) || '' === $v['message'] ) ) {
+				$err = 'Bitte fülle alle Pflichtfelder aus und prüfe die E-Mail-Adresse.';
 			}
 			if ( null === $err && ! $ok ) {
 				$err = 'Bitte bestätige den Datenschutzhinweis.';
 			}
+			if ( null === $err && mb_strlen( $v['message'] ) > 5000 ) {
+				$err = 'Deine Nachricht ist zu lang (maximal 5000 Zeichen).';
+			}
+			if ( null === $err && ! Ratelimit::hit( 'contact', Ratelimit::client_key(), 5, HOUR_IN_SECONDS ) ) {
+				$err = 'Du hast gerade mehrere Nachrichten gesendet. Bitte versuche es später noch einmal.';
+			}
 			if ( null === $err ) {
 				global $wpdb;
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				$wpdb->insert( $wpdb->prefix . 'll16_contact', [ 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'name' => $name, 'email' => $email, 'message' => $text ] );
-				wp_mail( (string) Masterdata::get( 'email' ), 'Kontaktanfrage von ' . $name, "Von: {$name} <{$email}>\n\n{$text}", [ 'Reply-To: ' . $email ] );
-				return '<p role="status">Danke, deine Nachricht ist bei uns angekommen.</p>';
+				$wpdb->insert( $wpdb->prefix . 'll16_contact', [ 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'name' => $v['name'], 'email' => $v['email'], 'message' => $v['message'] ] );
+				$sent = wp_mail( (string) Masterdata::get( 'email' ), 'Kontaktanfrage von ' . $v['name'], "Von: {$v['name']} <{$v['email']}>\n\n{$v['message']}", [ 'Reply-To: ' . $v['email'] ] );
+				if ( $sent ) {
+					return '<div class="ll16-ok" role="status"><p><strong>Danke, deine Nachricht ist bei uns angekommen.</strong> Wir melden uns so bald wie möglich bei dir.</p></div>';
+				}
+				$err = 'Deine Nachricht konnte gerade nicht zugestellt werden. Bitte versuche es später noch einmal oder schreibe uns direkt an ' . (string) Masterdata::get( 'email' ) . '.';
 			}
-			$msg = '<p role="alert"><strong>' . esc_html( $err ) . '</strong></p>';
+			$msg = '<div role="alert" class="ll16-error"><p style="margin:0">' . esc_html( $err ) . '</p></div>';
 		}
 		$privacy = esc_url( home_url( '/datenschutz/' ) );
-		return $msg . '<form method="post" class="ll16-form">'
+		$days    = (int) ( ( (array) get_option( 'll16_settings', [] ) )['contact_retention_days'] ?? 90 );
+		return '<div class="ll16-contact">' . $msg . '<form method="post" class="ll16-form">'
 			. '<input type="hidden" name="ll16_form" value="contact">' . self::hidden()
-			. '<p><label>Name *<br><input type="text" name="ll16_name" required autocomplete="name"></label></p>'
-			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required autocomplete="email"></label></p>'
-			. '<p><label>Nachricht *<br><textarea name="ll16_message" rows="6" required></textarea></label></p>'
-			. '<p><label><input type="checkbox" name="ll16_privacy" value="1" required> Ich habe die <a href="' . $privacy . '" target="_blank" rel="noopener">Datenschutzerklärung</a> gelesen. Meine Angaben werden zur Bearbeitung meiner Anfrage verarbeitet und nach ' . (int) ( ( (array) get_option( 'll16_settings', [] ) )['contact_retention_days'] ?? 90 ) . ' Tagen gelöscht.</label></p>'
-			. '<p><button type="submit" class="wp-element-button">Absenden</button></p></form>';
+			. '<p><label for="ll16_name">Name *</label><input type="text" id="ll16_name" name="ll16_name" required maxlength="120" autocomplete="name" value="' . esc_attr( $v['name'] ) . '"></p>'
+			. '<p><label for="ll16_email">E-Mail *</label><input type="email" id="ll16_email" name="ll16_email" required maxlength="190" autocomplete="email" value="' . esc_attr( $v['email'] ) . '"></p>'
+			. '<p><label for="ll16_message">Nachricht *</label><textarea id="ll16_message" name="ll16_message" rows="6" required maxlength="5000">' . esc_textarea( $v['message'] ) . '</textarea></p>'
+			. '<p><label class="ll16-check"><input type="checkbox" name="ll16_privacy" value="1" required><span>Ich habe die <a href="' . $privacy . '" target="_blank" rel="noopener">Datenschutzerklärung</a> gelesen. Meine Angaben werden zur Bearbeitung meiner Anfrage verarbeitet und nach ' . $days . ' Tagen gelöscht.</span></label></p>'
+			. '<p><button type="submit" class="wp-element-button">Absenden</button></p></form></div>';
 	}
 
 	/* ---------- Newsletter (Double-Opt-in) ---------- */
 
 	public static function newsletter_form(): string {
 		self::nocache();
-		$msg = '';
+		Assets::force_forms();
+		$msg        = '';
+		$email_keep = '';
 		if ( self::posted( 'newsletter' ) ) {
-			$err   = self::guard();
-			$email = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
-			if ( null === $err && ( ! is_email( $email ) || empty( $_POST['ll16_consent'] ) ) ) { // phpcs:ignore WordPress.Security
-				$err = 'Bitte gib eine gültige E-Mail-Adresse an und stimme zu.';
+			$err        = self::guard();
+			$email      = sanitize_email( wp_unslash( $_POST['ll16_email'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+			$email_keep = $email;
+			if ( null === $err && ( ! is_email( $email ) || strlen( $email ) > 190 ) ) {
+				$err = 'Bitte gib eine gültige E-Mail-Adresse an.';
+			}
+			if ( null === $err && empty( $_POST['ll16_consent'] ) ) { // phpcs:ignore WordPress.Security
+				$err = 'Bitte stimme der Einwilligung zu, damit wir dir den Newsletter schicken dürfen.';
+			}
+			if ( null === $err && ! Ratelimit::hit( 'nl-ip', Ratelimit::client_key(), 5, HOUR_IN_SECONDS ) ) {
+				$err = 'Du hast dich gerade mehrfach angemeldet. Bitte versuche es später noch einmal.';
 			}
 			if ( null === $err ) {
 				self::subscribe( $email );
-				return '<p role="status">Fast geschafft: Wir haben dir eine E-Mail mit einem Bestätigungslink geschickt.</p>';
+				return '<div class="ll16-ok" role="status"><p><strong>Fast geschafft!</strong> Wir haben dir eine E-Mail mit einem Bestätigungslink geschickt. Erst nach dem Klick auf den Link bist du angemeldet. Schau auch im Spam-Ordner nach.</p></div>';
 			}
-			$msg = '<p role="alert"><strong>' . esc_html( $err ) . '</strong></p>';
+			$msg = '<div role="alert" class="ll16-error"><p style="margin:0">' . esc_html( $err ) . '</p></div>';
 		}
 		return $msg . '<form method="post" class="ll16-form">'
 			. '<input type="hidden" name="ll16_form" value="newsletter">' . self::hidden()
-			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required autocomplete="email"></label></p>'
-			. '<p><label><input type="checkbox" name="ll16_consent" value="1" required> Ich möchte den Newsletter erhalten und stimme der Verarbeitung meiner E-Mail-Adresse dafür zu (Double-Opt-in, jederzeit per Link in jeder Mail widerrufbar). Mehr in der <a href="' . esc_url( home_url( '/datenschutz/' ) ) . '">Datenschutzerklärung</a>.</label></p>'
+			. '<p><label for="ll16_nl_email">E-Mail *</label><input type="email" id="ll16_nl_email" name="ll16_email" required maxlength="190" autocomplete="email" value="' . esc_attr( $email_keep ) . '"></p>'
+			. '<p><label class="ll16-check"><input type="checkbox" name="ll16_consent" value="1" required><span>Ich möchte den Newsletter erhalten und stimme der Verarbeitung meiner E-Mail-Adresse dafür zu (Double-Opt-in, jederzeit per Link in jeder Mail widerrufbar). Mehr in der <a href="' . esc_url( home_url( '/datenschutz/' ) ) . '">Datenschutzerklärung</a>.</span></label></p>'
 			. '<p><button type="submit" class="wp-element-button">Anmelden</button></p></form>';
 	}
 
@@ -168,6 +193,9 @@ final class Module {
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$t} WHERE email = %s", $email ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( $row && 'confirmed' === $row->status ) {
 			return; // keine Auskunft, ob bereits angemeldet
+		}
+		if ( ! Ratelimit::hit( 'nl-mail', strtolower( $email ), 1, 10 * MINUTE_IN_SECONDS ) ) {
+			return; // höchstens eine Bestätigungsmail je Adresse und 10 Minuten (kein Mail-Relay)
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->replace( $t, [ 'email' => $email, 'token_hash' => hash( 'sha256', $token ), 'status' => 'pending', 'text_version' => self::CONSENT_TEXT_VERSION, 'created_at' => gmdate( 'Y-m-d H:i:s' ) ] );
@@ -200,7 +228,11 @@ final class Module {
 			$msg = 'Du bist abgemeldet und deine Adresse ist gelöscht.';
 		}
 		// phpcs:enable
-		wp_die( esc_html( $msg ), 'Newsletter', [ 'response' => 200, 'back_link' => true ] );
+		wp_die(
+			'<p style="font-size:1.1rem">' . esc_html( $msg ) . '</p><p><a href="' . esc_url( home_url( '/' ) ) . '">Zurück zu ' . esc_html( (string) get_bloginfo( 'name' ) ) . '</a></p>',
+			'Newsletter',
+			[ 'response' => 200 ]
+		);
 	}
 
 	/* ---------- Verfügbarkeit ---------- */
@@ -219,9 +251,10 @@ final class Module {
 			}
 			return '<p role="alert"><strong>Bitte gib eine gültige E-Mail-Adresse an und stimme zu.</strong></p>';
 		}
+		Assets::force_forms();
 		return '<form method="post" class="ll16-form"><input type="hidden" name="ll16_form" value="notify">' . self::hidden()
-			. '<p><label>E-Mail *<br><input type="email" name="ll16_email" required></label></p>'
-			. '<p><label><input type="checkbox" name="ll16_consent" value="1" required> Bitte benachrichtigt mich einmalig, wenn dieses Produkt wieder verfügbar ist. Meine E-Mail-Adresse wird nur dafür verwendet und danach gelöscht.</label></p>'
+			. '<p><label for="ll16_nt_email">E-Mail *</label><input type="email" id="ll16_nt_email" name="ll16_email" required maxlength="190"></p>'
+			. '<p><label class="ll16-check"><input type="checkbox" name="ll16_consent" value="1" required><span>Bitte benachrichtigt mich einmalig, wenn dieses Produkt wieder verfügbar ist. Meine E-Mail-Adresse wird nur dafür verwendet und danach gelöscht.</span></label></p>'
 			. '<p><button type="submit" class="wp-element-button">Benachrichtigen</button></p></form>';
 	}
 

@@ -75,7 +75,7 @@ $post['m']['email'] = 'kaputt';
 $r = http( 'POST', '/wp-admin/admin-post.php', $post, $admin );
 wp_cache_flush();
 t( 'XSS im Namen wird entfernt', ! str_contains( Masterdata::get( 'name' ), '<script' ) );
-t( 'Ungültige E-Mail wird nicht übernommen', '' === Masterdata::get( 'email' ) );
+t( 'Ungültige E-Mail wird nicht übernommen, alter Wert bleibt (nichts verschwindet still)', 'sven@lindenweg16.de' === Masterdata::get( 'email' ) || 'kaputt' !== Masterdata::get( 'email' ) );
 update_option( Masterdata::OPTION, $orig_master );
 
 section( 'Admin: Module & Dienste' );

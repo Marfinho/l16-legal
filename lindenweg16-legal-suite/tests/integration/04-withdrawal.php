@@ -1,11 +1,10 @@
 <?php
 require __DIR__ . '/lib.php';
 use Lindenweg16\Legal\Withdrawal\Module as W;
+global $wpdb;
 
+reset_ratelimits();
 $jar = [];
-foreach ( [ 'kunde@example.com', 'falsch@example.com' ] as $e ) {
-	delete_transient( 'll16_wd_' . md5( $e ) );
-}
 $order = wc_create_order();
 $order->set_billing_email( 'kunde@example.com' );
 $order->set_billing_first_name( 'Erika' );
@@ -27,7 +26,7 @@ t( 'Signiertes Zeit-Token', '' !== $ts && 2 === count( explode( '.', $ts ) ) );
 $fields = fn( array $o = [] ) => array_merge( [ 'll16_step' => 'review', 'll16_ts' => $ts, 'll16_name' => 'Erika Muster', 'll16_order' => $num, 'll16_email' => 'kunde@example.com', 'll16_scope' => '', 'll16_website' => '' ], $o );
 
 $r = http( 'POST', $post_url, $fields(), $jar );
-t( 'Sofortiges Absenden wird abgelehnt (Zeitprüfung)', str_contains( $r['body'], 'zu lange' ) || str_contains( $r['body'], 'erneut' ), substr( wp_strip_all_tags( $r['body'] ), 0, 160 ) );
+t( 'Sofortiges Absenden wird abgelehnt (Zeitprüfung), freundlich formuliert, Eingaben bleiben', str_contains( $r['body'], 'ging sehr schnell' ) && str_contains( $r['body'], 'value="Erika Muster"' ), substr( wp_strip_all_tags( $r['body'] ), 0, 160 ) );
 sleep( 3 );
 $r = http( 'POST', $post_url, $fields( [ 'll16_website' => 'http://spam' ] ), $jar );
 t( 'Honeypot gefüllt → abgelehnt', str_contains( $r['body'], 'konnte nicht verarbeitet' ) );
@@ -36,7 +35,7 @@ t( 'Name fehlt → Fehlermeldung', str_contains( $r['body'], 'Namen' ) );
 $r = http( 'POST', $post_url, $fields( [ 'll16_email' => 'kaputt' ] ), $jar );
 t( 'Ungültige E-Mail → Fehlermeldung', str_contains( $r['body'], 'gültige E-Mail' ) );
 $r = http( 'POST', $post_url, $fields( [ 'll16_ts' => 'manipuliert.abc' ] ), $jar );
-t( 'Manipuliertes Token → abgelehnt', str_contains( $r['body'], 'erneut' ) );
+t( 'Manipuliertes Token → abgelehnt', str_contains( $r['body'], 'nicht geprüft werden' ) );
 
 section( 'Widerruf: Schritt 2 (Bestätigung)' );
 clear_mails();
@@ -50,7 +49,7 @@ t( 'Signierte Daten für Schritt 2', '' !== $data );
 $r = http( 'POST', $post_url, [ 'll16_step' => 'confirm', 'll16_data' => $data . 'x' ], $jar );
 t( 'Manipulierte Daten → abgelehnt', str_contains( $r['body'], 'ungültig' ) && 'completed' === wc_get_order( $order->get_id() )->get_status() );
 $r = http( 'POST', $post_url, [ 'll16_step' => 'confirm', 'll16_data' => $data ], $jar );
-t( 'Sofort bestätigen (<1 s) wird abgelehnt', str_contains( $r['body'], 'abgelaufen' ) || str_contains( $r['body'], 'Widerruf eingegangen' ) );
+t( 'Sofort bestätigen (<1 s) wird abgelehnt oder verarbeitet', str_contains( $r['body'], 'bestätige noch einmal' ) || str_contains( $r['body'], 'Widerruf eingegangen' ) );
 $already = str_contains( $r['body'], 'Widerruf eingegangen' );
 if ( ! $already ) {
 	sleep( 2 );
@@ -98,13 +97,33 @@ $shop = array_values( array_filter( mails(), fn( $m ) => 'sven@lindenweg16.de' =
 t( 'Shopmail warnt „manuell prüfen“', str_contains( $shop['message'] ?? '', 'manuell prüfen' ) );
 t( 'Teilwiderruf-Umfang in Mail', str_contains( $shop['message'] ?? '', 'Teilwiderruf: Helmhalter' ) );
 
+section( 'Widerruf: Doppelklick / Zurück-Button (Idempotenz)' );
+clear_mails();
+$r_again = http( 'POST', $post_url, [ 'll16_step' => 'confirm', 'll16_data' => $d2 ], $jar2 );
+t( 'Derselbe Token ein zweites Mal: „bereits erfasst“, nichts doppelt', str_contains( $r_again['body'], 'nichts doppelt erfasst' ) && [] === mails() );
+t( 'Ergebnis nennt denselben Eingangszeitpunkt', (bool) preg_match( '/\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}:\d{2} Uhr/', $r_again['body'] ) );
+
 section( 'Widerruf: Missbrauchsschutz (Rate-Limit)' );
-$blocked = false;
-for ( $i = 0; $i < 7 && ! $blocked; $i++ ) {
-	$r = http( 'POST', $post_url, [ 'll16_step' => 'confirm', 'll16_data' => $d2 ], $jar2 );
-	$blocked = str_contains( $r['body'], 'Zu viele Versuche' );
+reset_ratelimits();
+for ( $i = 0; $i < 5; $i++ ) {
+	\Lindenweg16\Legal\Core\Ratelimit::hit( 'wd-mail', 'vielschreiber@example.com', 5, HOUR_IN_SECONDS );
 }
-t( 'Mehr als 5 Bestätigungen/Stunde je E-Mail werden gebremst', $blocked );
+sleep( 3 );
+$jar3 = [];
+$r    = http( 'GET', $post_url, [], $jar3 );
+$tsx  = hidden( $r['body'], 'll16_ts' );
+sleep( 3 );
+$r    = http( 'POST', $post_url, [ 'll16_step' => 'review', 'll16_ts' => $tsx, 'll16_name' => 'Viel', 'll16_order' => '1', 'll16_email' => 'vielschreiber@example.com' ], $jar3 );
+sleep( 2 );
+$r = http( 'POST', $post_url, [ 'll16_step' => 'confirm', 'll16_data' => hidden( $r['body'], 'll16_data' ) ], $jar3 );
+t( '6. Bestätigung je E-Mail/Stunde wird gebremst, mit Hinweis auf E-Mail-Weg', str_contains( $r['body'], 'Zu viele Versuche' ) && str_contains( $r['body'], 'sven@lindenweg16.de' ) && str_contains( $r['body'], 'value="Viel"' ), substr( wp_strip_all_tags( $r['body'] ), 0, 120 ) );
+t( 'Dabei wurde keine Mail an die Adresse verschickt (kein Mail-Relay)', [] === array_filter( mails(), fn( $m ) => 'vielschreiber@example.com' === $m['to'] ) );
+reset_ratelimits();
+for ( $i = 0; $i < 15; $i++ ) {
+	\Lindenweg16\Legal\Core\Ratelimit::hit( 'wd-ip', \Lindenweg16\Legal\Core\Ratelimit::client_key(), 15, HOUR_IN_SECONDS );
+}
+t( 'IP-Limit (15/Stunde) greift ohne IP zu speichern', \Lindenweg16\Legal\Core\Ratelimit::exceeded( 'wd-ip', \Lindenweg16\Legal\Core\Ratelimit::client_key(), 15 ) && ! str_contains( wp_json_encode( $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '%ll16_rl_%'" ) ), '127.0.0.1' ) );
+reset_ratelimits();
 
 section( 'Widerruf: Verknüpfungen' );
 $footer = http( 'GET', '/', [], $jar2 )['body'];

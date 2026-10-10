@@ -18,7 +18,7 @@ final class Module {
 		add_action( 'woocommerce_single_product_summary', [ self::class, 'delivery_html' ], 11 );
 		add_filter( 'woocommerce_get_availability_text', [ self::class, 'availability_text' ], 20, 2 );
 		add_filter( 'woocommerce_product_tabs', [ self::class, 'tabs' ] );
-		add_action( 'woocommerce_after_single_product_summary', [ self::class, 'warranty_notice' ], 5 );
+		add_action( 'woocommerce_single_product_summary', [ self::class, 'warranty_notice' ], 12 );
 		add_action( 'woocommerce_before_cart_totals', [ self::class, 'warranty_notice' ] );
 		add_action( 'woocommerce_product_options_general_product_data', [ self::class, 'admin_fields' ] );
 		add_action( 'woocommerce_admin_process_product_object', [ self::class, 'save_fields' ] );

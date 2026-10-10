@@ -122,6 +122,9 @@ final class Module {
 			return;
 		}
 		$list = self::active_legacy();
+		if ( \Lindenweg16\Legal\Core\Modules::enabled( 'consent' ) && array_intersect( $list, [ 'complianz-gdpr/complianz-gdpr.php', 'complianz-gdpr-premium/complianz-gpdr-premium.php' ] ) ) {
+			echo '<div class="notice notice-error"><p><strong>Zwei Cookie-Banner:</strong> Complianz ist noch aktiv und zeigt ein eigenes Banner. Complianz-Banner abschalten (Complianz → Einstellungen → Cookie-Banner deaktivieren) oder das Modul „Consent-Manager“ erst nach der Umstellung aktivieren.</p></div>';
+		}
 		if ( [] === $list ) {
 			return;
 		}

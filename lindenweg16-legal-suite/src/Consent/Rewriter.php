@@ -56,6 +56,22 @@ final class Rewriter {
 			$html
 		) ?? $html;
 
+		// <link> (preconnect, dns-prefetch, preload, prefetch, stylesheet) und Tracking-Pixel (<img>, <source>, <embed>)
+		// bauen bereits beim Laden eine Verbindung zum Drittanbieter auf: für nicht erlaubte Dienste entfernen.
+		$html = preg_replace_callback(
+			'#<(link|img|source|embed)\b([^>]*?)/?>#i',
+			static function ( array $m ) use ( $rules ): string {
+				$attrs = $m[2];
+				$url   = self::attr( $attrs, 'href' ) ?? self::attr( $attrs, 'src' ) ?? self::attr( $attrs, 'srcset' );
+				if ( null === $url ) {
+					return $m[0];
+				}
+				$rule = self::match( $url, $rules );
+				return null === $rule ? $m[0] : '';
+			},
+			$html
+		) ?? $html;
+
 		$html = preg_replace_callback(
 			'#<iframe\b([^>]*)>(.*?)</iframe>#is',
 			static function ( array $m ) use ( $rules ): string {
@@ -81,6 +97,7 @@ final class Rewriter {
 					. '<p class="ll16-embed__text">Dieser Inhalt wird von <strong>' . $label . '</strong> bereitgestellt. '
 					. 'Beim Laden werden Daten an ' . self::esc( $host ) . ' übertragen.</p>'
 					. '<button type="button" class="ll16-btn" data-ll16-load="' . $id . '">Inhalt laden</button>'
+					. '<noscript><p><a href="' . self::esc( $src ) . '" target="_blank" rel="noopener noreferrer">Inhalt in neuem Tab öffnen (Verbindung zu ' . self::esc( $host ) . ')</a></p></noscript>'
 					. '<template><iframe' . rtrim( ' ' . trim( $inert ) ) . '></iframe></template>'
 					. '</div>';
 			},
@@ -95,6 +112,10 @@ final class Rewriter {
 	 * @return array<string,mixed>|null
 	 */
 	public static function match( string $haystack, array $rules ): ?array {
+		// URLs: nur Host und Pfad vergleichen, nicht Query/Fragment (z. B. ?ref=https://stats.wp.com ist kein Tracking-Skript).
+		if ( 1 === preg_match( '#^(https?:)?//|^/#i', $haystack ) ) {
+			$haystack = (string) strtok( $haystack, '?#' );
+		}
 		foreach ( $rules as $rule ) {
 			foreach ( (array) $rule['patterns'] as $needle ) {
 				if ( '' !== $needle && false !== stripos( $haystack, (string) $needle ) ) {

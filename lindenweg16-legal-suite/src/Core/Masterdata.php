@@ -92,4 +92,71 @@ final class Masterdata {
 		}
 		return $out;
 	}
+
+	/** Zahl in deutscher Schreibweise mit zwei Nachkommastellen („6.99“ → „6,99“); null bei ungültiger Eingabe. */
+	public static function money( string $raw ): ?string {
+		$t = trim( str_replace( [ '€', ' ' ], '', $raw ) );
+		if ( 1 === preg_match( '/^\d{1,3}(\.\d{3})+,\d{1,2}$/', $t ) ) {
+			$t = str_replace( '.', '', $t ); // 1.234,50
+		}
+		$t = str_replace( ',', '.', $t );
+		if ( 1 !== preg_match( '/^\d+(\.\d{1,2})?$/', $t ) ) {
+			return null;
+		}
+		return number_format( (float) $t, 2, ',', '' );
+	}
+
+	/**
+	 * Prüft bereinigte Stammdaten und normalisiert Werte. Ungültige Felder werden gemeldet,
+	 * damit sie nicht stillschweigend verschwinden.
+	 *
+	 * @param array<string,mixed> $san Ergebnis von sanitize()
+	 * @return array{values:array<string,mixed>,errors:array<string,string>}
+	 */
+	public static function check( array $san ): array {
+		$errors = [];
+		$raw_email = (string) ( $san['email'] ?? '' );
+		if ( '' === $raw_email ) {
+			$errors['email'] = 'E-Mail-Adresse fehlt oder ist ungültig.';
+		}
+		$phone = (string) ( $san['phone'] ?? '' );
+		$digits = strlen( (string) preg_replace( '/\D/', '', $phone ) );
+		if ( '' === $phone || $digits < 6 || $digits > 15 ) {
+			$errors['phone'] = 'Telefonnummer ungültig (6 bis 15 Ziffern).';
+		}
+		if ( 'Deutschland' === ( $san['country'] ?? '' ) && 1 !== preg_match( '/^\d{5}$/', (string) ( $san['zip'] ?? '' ) ) ) {
+			$errors['zip'] = 'Postleitzahl muss fünfstellig sein.';
+		}
+		foreach ( [ 'name', 'street', 'city' ] as $f ) {
+			if ( '' === trim( (string) ( $san[ $f ] ?? '' ) ) ) {
+				$errors[ $f ] = 'Pflichtfeld.';
+			}
+		}
+		foreach ( [ 'shipping_cost' => false, 'free_shipping_from' => true ] as $f => $optional ) {
+			$val = (string) ( $san[ $f ] ?? '' );
+			if ( '' === $val && $optional ) {
+				continue;
+			}
+			$m = self::money( $val );
+			if ( null === $m ) {
+				$errors[ $f ] = 'Bitte einen Betrag wie 6,99 eingeben.';
+			} else {
+				$san[ $f ] = $m;
+			}
+		}
+		$countries = array_values( array_unique( array_map( 'strtoupper', (array) ( $san['delivery_countries'] ?? [] ) ) ) );
+		$bad       = array_filter( $countries, static fn( $c ) => 1 !== preg_match( '/^[A-Z]{2}$/', $c ) );
+		if ( [] === $countries || $bad ) {
+			$errors['delivery_countries'] = 'Mindestens ein Land als Zwei-Buchstaben-Code (z. B. DE).';
+		} else {
+			$san['delivery_countries'] = $countries;
+		}
+		if ( (int) ( $san['withdrawal_days'] ?? 0 ) < 14 ) {
+			$errors['withdrawal_days'] = 'Die gesetzliche Widerrufsfrist beträgt mindestens 14 Tage.';
+		}
+		if ( ! empty( $san['authority_url'] ) && 1 !== preg_match( '#^https?://#', (string) $san['authority_url'] ) ) {
+			$errors['authority_url'] = 'Bitte eine vollständige Adresse mit https:// angeben.';
+		}
+		return [ 'values' => $san, 'errors' => $errors ];
+	}
 }

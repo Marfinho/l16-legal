@@ -1,6 +1,9 @@
 <?php
 // Nur Testumgebung: Mails abfangen statt senden.
 add_filter( 'pre_wp_mail', function ( $null, $atts ) {
+	if ( get_option( 'll16_test_mail_fail' ) ) {
+		return false;
+	}
 	file_put_contents( WP_CONTENT_DIR . '/mail.log', wp_json_encode( [ 'to' => $atts['to'], 'subject' => $atts['subject'], 'message' => $atts['message'], 'attachments' => $atts['attachments'] ] ) . "\n", FILE_APPEND );
 	return true;
 }, 10, 2 );

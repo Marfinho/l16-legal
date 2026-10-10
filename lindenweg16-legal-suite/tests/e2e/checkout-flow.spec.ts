@@ -74,7 +74,7 @@ test('Bestellung: Button, Hinweis direkt über dem Button, Pflicht-Checkbox, Ver
 
   // Land: nur Deutschland
   const countries = await page.locator('select[id$="country"] option').allTextContents();
-  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual(['Germany']);
+  expect(countries.map((c) => c.trim()).filter((c) => c && !/^select|^bitte/i.test(c))).toEqual([expect.stringMatching(/^(Germany|Deutschland)$/)]);
 
   await page.getByRole('radio', { name: /Überweisung/ }).check({ timeout: 20000 });
 

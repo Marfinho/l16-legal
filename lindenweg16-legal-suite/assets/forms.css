@@ -1,0 +1,19 @@
+/* Formulare des Plugins (Widerruf, Kontakt, Newsletter, Benachrichtigung): lesbar, touch-tauglich, ohne Theme-Abhängigkeit. */
+.ll16-form{max-width:36rem;margin:1.25rem 0}
+.ll16-form p{margin:0 0 1rem}
+.ll16-form label{display:block;font-weight:600;margin-bottom:.3rem}
+.ll16-form input[type=text],.ll16-form input[type=email],.ll16-form textarea{display:block;width:100%;box-sizing:border-box;min-height:44px;padding:.6rem .75rem;font:inherit;font-size:1rem;color:inherit;background:transparent;border:1px solid currentColor;border-radius:4px}
+.ll16-form textarea{min-height:9rem;resize:vertical}
+.ll16-form input:focus-visible,.ll16-form textarea:focus-visible,.ll16-form button:focus-visible{outline:3px solid #0057b8;outline-offset:2px}
+.ll16-form .ll16-check{display:flex;gap:.65rem;align-items:flex-start;font-weight:400}
+.ll16-form .ll16-check input{flex:none;width:1.25rem;height:1.25rem;margin-top:.15rem}
+.ll16-form .ll16-hint{font-size:.875rem;opacity:.85;margin-top:.25rem}
+.ll16-form button,.ll16-form .button{min-height:44px;padding:.6rem 1.4rem;cursor:pointer}
+.ll16-actions-row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.ll16-error{padding:.75rem 1rem;border-left:4px solid #b00020;background:rgba(176,0,32,.08)}
+.ll16-ok{padding:.75rem 1rem;border-left:4px solid #1a7f37;background:rgba(26,127,55,.08)}
+.ll16-summary{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem;margin:1rem 0}
+.ll16-summary dt{font-weight:600}.ll16-summary dd{margin:0;overflow-wrap:anywhere}
+.ll16-footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:.25rem 1.25rem;margin:1.5rem 1rem;padding:0;list-style:none;font-size:.9rem}
+.ll16-footer-links a{padding:.4rem 0;display:inline-block;min-height:24px}
+@media (prefers-color-scheme:dark){.ll16-form input:focus-visible,.ll16-form textarea:focus-visible,.ll16-form button:focus-visible{outline-color:#6cb0ff}}
