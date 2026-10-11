@@ -66,6 +66,9 @@ $fields_api = \Automattic\WooCommerce\Blocks\Package::container()->get( \Automat
 $ids = array_keys( $fields_api->get_additional_fields() );
 t( 'Pflicht-Checkbox lindenweg16/terms registriert', in_array( 'lindenweg16/terms', $ids, true ), implode( ',', $ids ) );
 t( 'Checkbox für individuelle Ware registriert', in_array( 'lindenweg16/individual_ack', $ids, true ) );
+$iack = $fields_api->get_additional_fields()['lindenweg16/individual_ack'] ?? [];
+t( 'Checkbox für individuelle Ware hat Sichtbarkeits- und Pflicht-Regel (nur bei passender Ware)', ! empty( $iack['hidden'] ) && is_array( $iack['hidden'] ) && ! empty( $iack['required'] ) && is_array( $iack['required'] ) );
+t( 'Regeln sind gegensätzlich (hidden = ohne, required = mit individueller Ware)', false === $iack['hidden']['properties']['cart']['properties']['extensions']['properties']['lindenweg16']['properties']['has_individual']['const'] && true === $iack['required']['properties']['cart']['properties']['extensions']['properties']['lindenweg16']['properties']['has_individual']['const'] );
 $terms = $fields_api->get_additional_fields()['lindenweg16/terms'] ?? [];
 t( 'Terms-Checkbox ist Pflicht und vom Typ checkbox', ! empty( $terms['required'] ) && 'checkbox' === ( $terms['type'] ?? '' ) );
 
@@ -117,6 +120,22 @@ $cart = json_decode( http( 'GET', '/wp-json/wc/store/v1/cart', [], $jar )['body'
 t( 'Eigene Lieferzeit der Sonderanfertigung im Warenkorb', str_contains( wp_json_encode( $cart['items'][1]['item_data'] ?? [], JSON_UNESCAPED_UNICODE ), '10–14 Werktage' ) );
 $cart_page = http( 'GET', '/cart/', [], $jar );
 t( 'Warenkorbseite lädt mit Inhalt', 200 === $cart_page['code'] );
+
+section( 'Checkout: Cart-Datum „enthält individuelle Ware“' );
+WC()->initialize_session();
+WC()->cart = new WC_Cart();
+t( 'Leerer Warenkorb: kein individuelles Produkt', false === Checkout::cart_has_individual() );
+WC()->cart->add_to_cart( $base->get_id() );
+t( 'Standardware: false', false === Checkout::cart_has_individual() );
+WC()->cart->add_to_cart( $ind->get_id() );
+t( 'Mit Sonderanfertigung: true', true === Checkout::cart_has_individual() );
+WC()->cart->empty_cart();
+WC()->cart->add_to_cart( $base->get_id(), 1, 0, [], [ 'll16_individual' => 'Personalisierung: Name' ] );
+t( 'Personalisierung aus dem Konfigurator (Warenkorb-Position) wird erkannt', true === Checkout::cart_has_individual() );
+WC()->cart->empty_cart();
+$store = wp_remote_get( rest_url( 'wc/store/v1/cart' ), [ 'sslverify' => false ] );
+$cart_json = json_decode( wp_remote_retrieve_body( $store ), true );
+t( 'Store API liefert extensions.lindenweg16.has_individual', isset( $cart_json['extensions']['lindenweg16']['has_individual'] ) && false === $cart_json['extensions']['lindenweg16']['has_individual'] );
 
 section( 'Checkout: Bestätigung bei individueller Ware' );
 WC()->initialize_session();

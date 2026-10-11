@@ -106,11 +106,12 @@ modules(true); resetRL();
   c = await ctx(); p = await c.newPage();
   await addToCart(p, 'sonderanfertigung');
   await checkoutFill(p, 'individuell@example.com');
+  await shot(p, '10a-checkout-individuelle-ware-checkbox-sichtbar', { full: true });
   await p.getByLabel(/Ich habe AGB, Widerrufsbelehrung/).first().check();
   await p.waitForLoadState('networkidle'); await sleep(800);
-  for (let i = 0; i < 3; i++) { await p.getByRole('button', { name: 'Zahlungspflichtig bestellen' }).click(); await sleep(1800); if (await p.getByText(/Ausschluss des Widerrufsrechts/).first().isVisible().catch(() => false)) break; }
-  await p.evaluate(() => window.scrollTo(0, 0)); await shot(p, '10-checkout-fehler-individuelle-ware');
-  await p.getByLabel(/Nur bei individuell angefertigten Waren/).first().check(); await sleep(800);
+  for (let i = 0; i < 2; i++) { await p.getByRole('button', { name: 'Zahlungspflichtig bestellen' }).click(); await sleep(1800); }
+  await p.evaluate(() => document.querySelector('.wc-block-components-validation-error')?.scrollIntoView({ block: 'center' })); await shot(p, '10-checkout-fehler-individuelle-ware');
+  await p.getByLabel(/individuell angefertigte Waren in meiner Bestellung/).first().check(); await sleep(800);
   for (let i = 0; i < 3; i++) { await p.getByRole('button', { name: 'Zahlungspflichtig bestellen' }).click(); await sleep(2500); if (/order-received/.test(p.url())) break; }
   await p.waitForURL(/order-received/, { timeout: 30000 }).catch(() => {});
   await shot(p, '11-bestellung-bestaetigt', { full: true });

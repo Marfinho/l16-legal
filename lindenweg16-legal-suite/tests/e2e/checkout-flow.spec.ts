@@ -77,6 +77,8 @@ test('Bestellung: Button, Hinweis direkt über dem Button, Pflicht-Checkbox, Ver
   expect([...new Set(countries)]).toEqual(['DE']);   // Platzhalter-Option (leerer Wert) ignorieren, Sprache egal
 
   await page.getByRole('radio', { name: /Überweisung/ }).check({ timeout: 20000 });
+  // Checkbox für individuelle Ware erscheint bei Standardware nicht
+  await expect(page.getByLabel(/individuell angefertigte Waren/)).toHaveCount(0);
 
   // 1) Ohne Pflicht-Checkbox keine Bestellung
   const before = orderCount();
@@ -111,22 +113,40 @@ test('Bestellung: Button, Hinweis direkt über dem Button, Pflicht-Checkbox, Ver
   expect(html).toContain('Datenschutzerklärung');
 });
 
-test('Bestellung: individuell angefertigte Ware verlangt zusätzliche Bestätigung', async ({ page }) => {
-  if (process.env.LL16_DEBUG) page.on('response', async (r) => { if (r.url().includes('/wc/store') && r.request().method() === 'POST') console.log('API', r.status(), r.url().split('/wp-json')[1], (await r.text()).slice(0, 200)); });
+test('Bestellung: individuell angefertigte Ware verlangt zusätzliche Bestätigung (Checkbox nur hier sichtbar)', async ({ page }) => {
   await addToCart(page, '/product/sonderanfertigung/');
   await fillAddress(page);
   await page.getByRole('radio', { name: /Überweisung/ }).check({ timeout: 20000 });
+  const ack = page.getByLabel(/individuell angefertigte Waren in meiner Bestellung/);
+  await expect(ack).toHaveCount(1);                       // sichtbar, weil Sonderanfertigung im Warenkorb
+  await expect(ack).not.toBeChecked();
   await page.getByLabel(/Ich habe AGB, Widerrufsbelehrung/).first().check();
   const before = orderCount();
   await placeOrder(page);
-  await expect(page.locator('body')).toContainText(/Ausschluss des Widerrufsrechts/, { timeout: 15000 });
+  // Ohne Bestätigung keine Bestellung, Fehlermeldung direkt am Feld
+  await expect(page.locator('body')).toContainText(/Kontrollkästchen|Pflichtfeld|aktiviere|Ausschluss des Widerrufsrechts/, { timeout: 15000 });
   expect(orderCount()).toBe(before);
 
-  await page.getByLabel(/Nur bei individuell angefertigten Waren/).first().check();
+  await ack.check();
   await placeOrder(page);
   await page.waitForURL(/order-received/, { timeout: 45000 });
   expect(orderCount()).toBe(before + 1);
   expect(['1', 1, true]).toContain(lastOrder().ack);
+});
+
+test('Warenkorbwechsel: Checkbox erscheint/verschwindet je nach Artikel', async ({ page }) => {
+  await addToCart(page, '/product/base/');
+  await page.goto('/checkout/', { waitUntil: 'networkidle' });
+  await expect(page.getByLabel(/individuell angefertigte Waren in meiner Bestellung/)).toHaveCount(0);
+  await addToCart(page, '/product/sonderanfertigung/');
+  await page.goto('/checkout/', { waitUntil: 'networkidle' });
+  await expect(page.getByLabel(/individuell angefertigte Waren in meiner Bestellung/)).toHaveCount(1);
+  // Individuelle Ware entfernen → Checkbox verschwindet wieder
+  await page.goto('/cart/', { waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /Individuelle Anfertigung.*entfernen|entfernen/i }).last().click();
+  await page.waitForTimeout(1500);
+  await page.goto('/checkout/', { waitUntil: 'networkidle' });
+  await expect(page.getByLabel(/individuell angefertigte Waren in meiner Bestellung/)).toHaveCount(0);
 });
 
 test('Warenkorb (Block): Lieferzeit je Position, Versandhinweis, kein „inkl. MwSt.“', async ({ page }) => {

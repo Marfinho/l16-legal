@@ -18,6 +18,7 @@ final class Module {
 		add_action( 'woocommerce_review_order_before_submit', static fn() => print( self::terms_notice() ) ); // phpcs:ignore WordPress.Security.EscapeOutput
 		add_filter( 'render_block', [ self::class, 'render_block' ], 10, 2 );
 		add_action( 'woocommerce_init', [ self::class, 'register_fields' ] );
+		add_action( 'woocommerce_init', [ self::class, 'register_cart_data' ] );
 		add_filter( 'woocommerce_countries_allowed_countries', [ self::class, 'countries' ] );
 		add_filter( 'woocommerce_countries_shipping_countries', [ self::class, 'countries' ] );
 		add_filter( 'woocommerce_add_to_cart_validation', [ self::class, 'validate_selection' ], 10, 3 );
@@ -102,12 +103,80 @@ final class Module {
 		woocommerce_register_additional_checkout_field(
 			[
 				'id'       => 'lindenweg16/individual_ack',
-				'label'    => 'Nur bei individuell angefertigten Waren: Ich weiß, dass für diese Ware kein Widerrufsrecht besteht.',
+				'label'    => 'Ich weiß, dass für individuell angefertigte Waren in meiner Bestellung kein Widerrufsrecht besteht.',
 				'location' => 'order',
 				'type'     => 'checkbox',
-				'required' => false,
+				// Sichtbar und Pflicht NUR, wenn der Warenkorb individuell angefertigte Ware enthält.
+				'hidden'   => self::individual_rule( false ),
+				'required' => self::individual_rule( true ),
 			]
 		);
+	}
+
+	/**
+	 * JSON-Schema-Regel für Checkout-Felder: trifft zu, wenn der Warenkorb individuelle Ware enthält ($has = true)
+	 * bzw. nicht enthält ($has = false). Grundlage ist das Cart-Datum der Erweiterung „lindenweg16“.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function individual_rule( bool $has ): array {
+		return [
+			'type'       => 'object',
+			'properties' => [
+				'cart' => [
+					'type'       => 'object',
+					'properties' => [
+						'extensions' => [
+							'type'       => 'object',
+							'properties' => [
+								'lindenweg16' => [
+									'type'       => 'object',
+									'properties' => [ 'has_individual' => [ 'const' => $has ] ],
+									'required'   => [ 'has_individual' ],
+								],
+							],
+							'required'   => [ 'lindenweg16' ],
+						],
+					],
+					'required'   => [ 'extensions' ],
+				],
+			],
+			'required'   => [ 'cart' ],
+		];
+	}
+
+	/** Cart-Datum „enthält der Warenkorb individuell angefertigte Ware?“ (Store API, vom Block-Checkout ausgewertet). */
+	public static function register_cart_data(): void {
+		if ( ! function_exists( 'woocommerce_store_api_register_endpoint_data' ) ) {
+			return;
+		}
+		woocommerce_store_api_register_endpoint_data(
+			[
+				'endpoint'        => 'cart',
+				'namespace'       => 'lindenweg16',
+				'data_callback'   => static fn() => [ 'has_individual' => self::cart_has_individual() ],
+				'schema_callback' => static fn() => [
+					'has_individual' => [
+						'description' => 'Enthält der Warenkorb individuell angefertigte Ware?',
+						'type'        => 'boolean',
+						'readonly'    => true,
+					],
+				],
+				'schema_type'     => ARRAY_A,
+			]
+		);
+	}
+
+	public static function cart_has_individual(): bool {
+		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+			return false;
+		}
+		foreach ( WC()->cart->get_cart() as $item ) {
+			if ( \Lindenweg16\Legal\Product\Module::is_individual( $item['data'], $item ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -163,13 +232,7 @@ final class Module {
 	 * @param \WP_REST_Request $request
 	 */
 	public static function validate_individual_ack( $order, $request ): void {
-		$has_individual = false;
-		foreach ( WC()->cart ? WC()->cart->get_cart() : [] as $item ) {
-			if ( \Lindenweg16\Legal\Product\Module::is_individual( $item['data'], $item ) ) {
-				$has_individual = true;
-				break;
-			}
-		}
+		$has_individual = self::cart_has_individual();
 		if ( ! $has_individual ) {
 			return;
 		}
