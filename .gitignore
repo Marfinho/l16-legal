@@ -1,0 +1,7 @@
+
+# Shop-Exporte und Backups gehören nicht ins Repository (Gutscheincodes, Kontaktdaten)
+import/
+*.WordPress.*.xml
+*.sql
+*.sql.gz
+wp-config.php

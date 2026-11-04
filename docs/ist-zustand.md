@@ -1,6 +1,6 @@
 # Ist-Zustand (aus WordPress-Export 10.10.2026) und Abgleich L1–L16
 
-Quelle: `import/lindenweg16.WordPress.2026-10-10.xml` (Seiten, Produkte, Gutscheine; keine Bestellungen/Nutzer).
+Quelle: WordPress-Export vom 10.10.2026 (Seiten, Produkte, Gutscheine; keine Bestellungen/Nutzer). Der Export liegt bewusst nicht im Repository (enthält Gutschein- und Kontaktdaten).
 
 ## Seiten
 | Slug | Status | Bemerkung |
