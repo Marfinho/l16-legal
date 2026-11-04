@@ -14,7 +14,7 @@ Quelle: `import/lindenweg16.WordPress.2026-10-10.xml` (Seiten, Produkte, Gutsche
 | `impressum`, `contact-us`, `ueber-uns`, `shop`, `warenkorb`, `checkout` („Abschluss"), `my-account`, `konfigurator`, `home-2`, `startseite-test` | publish | `startseite-test` prüfen/entfernen |
 
 ## Produkte (11)
-Alle `instock`; nur BSM hat Gewicht/Maße. **BSM ist ein einfaches Produkt, dessen Attribute `Farbe` und `Holz` als Varianten-Attribute markiert sind** → keine Auswahl erzwingbar (Ursache L7). Lösung: variables Produkt. Es laufen zusätzlich Google Listings & Ads (`_wc_gla_*`, Fehler „imageLink fehlt"), Pinterest (`_wc_pinterest_*`), rankingcoach (SEO), Botiga-Theme. Gutscheine: Rabattcode + zwei Geschenkgutschein-Codes im Export.
+Alle `instock`; nur BSM hat Gewicht/Maße. **BSM ist ein einfaches Produkt, dessen Attribute `Farbe` und `Holz` als Varianten-Attribute markiert sind** → keine Auswahl erzwingbar (Ursache L7). Lösung: variables Produkt. Es laufen zusätzlich Google Listings & Ads (`_wc_gla_*`, Fehler „imageLink fehlt"), Pinterest (`_wc_pinterest_*`), rankingcoach (SEO), Botiga-Theme. Gutscheine: ein Rabattcode und zwei Geschenkgutschein-Codes im Export (hier bewusst nicht genannt).
 
 ## Befunde
 | ID | Behoben durch | Rest / zu klären |

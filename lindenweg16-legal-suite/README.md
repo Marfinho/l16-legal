@@ -54,7 +54,7 @@ Im Reiter *Allgemein*: Lieferzeit, „Individuell angefertigt" (löst im Checkou
 
 Updates erscheinen wie bei jedem Plugin unter *Dashboard → Aktualisierungen* und in der Plugin-Liste („Update verfügbar“), auch per `wp plugin update lindenweg16-legal-suite`. Quelle sind die **GitHub-Releases** dieses Repositorys; das Paket wird per SHA-256-Prüfsumme geprüft. Es wird nur der Server kontaktiert (`api.github.com`), keine Besucherdaten.
 
-**Das Repository ist privat. Einmalig einrichten:**
+**Nur bei privatem Repository nötig (bei öffentlichem Repository entfällt dieser Schritt):**
 1. GitHub → Settings → Developer settings → *Fine-grained personal access tokens* → neues Token nur für das Repository `Marfinho/l16-legal`, Berechtigung **Contents: Read-only**, möglichst lange Laufzeit.
 2. In die `wp-config.php` (über der Zeile „That's all, stop editing“): `define( 'LL16_GITHUB_TOKEN', 'github_pat_…' );`
    Das Token liegt bewusst nur dort, nie in der Datenbank. Es wird nur an GitHub-Hosts gesendet.

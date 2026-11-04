@@ -228,8 +228,9 @@ final class Page {
 			echo ' · noch nicht geprüft';
 		}
 		echo '</p>';
-		if ( ! defined( 'LL16_GITHUB_TOKEN' ) ) {
-			echo '<p class="description">Das Repository ist privat: Ohne Zugriffs-Token in der <code>wp-config.php</code> (<code>define( \'LL16_GITHUB_TOKEN\', \'…\' );</code>, nur Leserecht „Contents“) findet WordPress keine Updates. Siehe README, Abschnitt „Updates“.</p>';
+		// Hinweis auf das Token nur, wenn die Prüfung fehlschlägt und keins hinterlegt ist (bei öffentlichem Repository nicht nötig).
+		if ( is_array( $cached ) && ! empty( $cached['error'] ) && ! defined( 'LL16_GITHUB_TOKEN' ) ) {
+			echo '<p class="description">Die Prüfung ist fehlgeschlagen. Ist das Repository privat, braucht WordPress ein Zugriffs-Token in der <code>wp-config.php</code> (<code>define( \'LL16_GITHUB_TOKEN\', \'…\' );</code>, nur Leserecht „Contents“). Bei öffentlichem Repository ist keins nötig. Siehe README, Abschnitt „Updates“.</p>';
 		}
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="ll16_check_update">';
 		wp_nonce_field( 'll16_check_update' );

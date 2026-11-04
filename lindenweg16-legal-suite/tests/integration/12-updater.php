@@ -100,7 +100,7 @@ rel( '0.2.1' );
 delete_transient( U::TRANSIENT );
 $pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=status', [], $admin )['body'];
 t( 'Status-Tab zeigt installierte Version und Prüfen-Schaltfläche', str_contains( $pg, 'Plugin-Updates' ) && str_contains( $pg, 'Installiert:' ) && str_contains( $pg, 'Jetzt auf Updates prüfen' ) );
-t( 'Hinweis auf Token bei privatem Repo (Konstante fehlt)', str_contains( $pg, 'LL16_GITHUB_TOKEN' ) );
+t( 'Kein Token-Hinweis, solange die Prüfung funktioniert (öffentliches Repo braucht keins)', ! str_contains( $pg, 'LL16_GITHUB_TOKEN' ) );
 preg_match_all( '/name="_wpnonce" value="([^"]+)"/', $pg, $nn );
 $r = http( 'POST', '/wp-admin/admin-post.php', [ 'action' => 'll16_check_update', '_wpnonce' => end( $nn[1] ) ], $admin );
 t( 'Prüfen-Schaltfläche → Weiterleitung mit Ergebnis', 302 === $r['code'] && str_contains( rawurldecode( (string) $r['headers']['location'] ), '0.2.1' ), (string) ( $r['headers']['location'] ?? '' ) );
@@ -114,6 +114,15 @@ $kj = []; http( 'POST', '/wp-login.php', [ 'log' => 'kunde', 'pwd' => 'kundepw',
 $r = http( 'POST', '/wp-admin/admin-post.php', [ 'action' => 'll16_check_update' ], $kj );
 t( 'Prüfen als Subscriber verboten', $r['code'] >= 400 );
 t( 'Einstellungen-Tab: Schalter für Update-Prüfung', str_contains( http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=settings', [], $admin )['body'], 'Auf Plugin-Updates prüfen' ) );
+
+section( 'Updater: Hinweis bei fehlgeschlagener Prüfung' );
+@unlink( $mock . '/release.json' );
+delete_transient( U::TRANSIENT );
+U::latest( true );
+$pg3 = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=status', [], $admin )['body'];
+t( 'Prüfung fehlgeschlagen → Hinweis auf Token (privates Repo) und „letzte Prüfung fehlgeschlagen“', str_contains( $pg3, 'LL16_GITHUB_TOKEN' ) && str_contains( $pg3, 'fehlgeschlagen' ) );
+rel( '0.2.1' );
+delete_transient( U::TRANSIENT );
 
 section( 'Updater: Aufräumen' );
 t( 'Deinstallations-Skript löscht den Update-Cache', str_contains( (string) file_get_contents( dirname( __DIR__, 2 ) . '/uninstall.php' ), "'ll16_update_info'" ) );
