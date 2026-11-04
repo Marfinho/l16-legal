@@ -32,29 +32,29 @@ $check = function () use ( $plugin_file ) {
 };
 
 section( 'Updater: Grundlagen' );
-t( 'Installierte Version 0.2.0 (Testausgangslage)', '0.2.0' === LL16_VERSION, LL16_VERSION );
+t( 'Installierte Version 0.8.0 (Testausgangslage)', '0.8.0' === LL16_VERSION, LL16_VERSION );
 t( 'Plugin-Header trägt Update-URI auf github.com', str_contains( (string) file_get_contents( LL16_FILE ), 'Update URI:        https://github.com/Marfinho/l16-legal' ) );
 t( 'API-Basis zeigt auf den Mock', str_starts_with( $base, 'http://127.0.0.1' ), $base );
 t( 'Hosts: GitHub erlaubt, Fremdhost verboten', U::host_allowed( 'https://api.github.com/x' ) && U::host_allowed( 'https://objects.githubusercontent.com/x' ) && ! U::host_allowed( 'https://evil.example/x' ) && ! U::host_allowed( 'https://github.com.evil.example/x' ) );
 
 section( 'Updater: Update wird angeboten' );
-rel( '0.2.1' );
+rel( '0.8.1' );
 clear_reqs();
 $u = $check();
-t( 'Neueres Release → Update-Eintrag für unser Plugin', is_object( $u ) && '0.2.1' === $u->new_version, wp_json_encode( $u ) );
-t( 'Eintrag enthält Paket-URL, Details-URL, PHP-Anforderung', is_object( $u ) && str_contains( (string) $u->package, 'lindenweg16-legal-suite-0.2.1.zip' ) && str_contains( (string) $u->url, 'github.com/Marfinho' ) && '8.3' === $u->requires_php );
+t( 'Neueres Release → Update-Eintrag für unser Plugin', is_object( $u ) && '0.8.1' === $u->new_version, wp_json_encode( $u ) );
+t( 'Eintrag enthält Paket-URL, Details-URL, PHP-Anforderung', is_object( $u ) && str_contains( (string) $u->package, 'lindenweg16-legal-suite-0.8.1.zip' ) && str_contains( (string) $u->url, 'github.com/Marfinho' ) && '8.3' === $u->requires_php );
 t( 'Prüfsumme wurde mit abgerufen und gemerkt', 64 === strlen( (string) ( get_transient( U::TRANSIENT )['sha256'] ?? '' ) ) );
 t( 'Anfrage ohne Token sendet keinen Authorization-Header', [] === array_filter( reqs(), fn( $r ) => '' !== $r['auth'] ) );
 t( 'Ergebnis wird gecacht (zweite Prüfung ohne neuen API-Aufruf)', ( function () use ( $check ) { clear_reqs(); $check(); return 0 === count( array_filter( reqs(), fn( $r ) => str_contains( $r['path'], '/releases/latest' ) ) ); } )() );
 t( 'Details-Dialog liefert Version, Changelog (escaped) und Download-Link', ( function () {
 	$i = plugins_api( 'plugin_information', (object) [ 'slug' => 'lindenweg16-legal-suite' ] );
-	return is_object( $i ) && '0.2.1' === $i->version && str_contains( $i->sections['changelog'], '&lt;b&gt;fett' ) && str_contains( (string) $i->download_link, '.zip' ) && 'Lindenweg16 Legal Suite' === $i->name;
+	return is_object( $i ) && '0.8.1' === $i->version && str_contains( $i->sections['changelog'], '&lt;b&gt;fett' ) && str_contains( (string) $i->download_link, '.zip' ) && 'Lindenweg16 Legal Suite' === $i->name;
 } )() );
 t( 'Details für fremde Plugins werden nicht verändert', false === apply_filters( 'plugins_api', false, 'plugin_information', (object) [ 'slug' => 'anderes' ] ) );
 
 section( 'Updater: Kein Update / ungültige Releases' );
 foreach ( [
-	'gleiche Version (0.2.0)' => [ '0.2.0', [] ],
+	'gleiche Version (0.8.0)' => [ '0.8.0', [] ],
 	'ältere Version (0.1.9)'  => [ '0.1.9', [] ],
 	'Entwurf (draft)'         => [ '0.9.0', [ 'draft' => true ] ],
 	'Vorabversion'            => [ '0.9.0', [ 'pre' => true ] ],
@@ -87,7 +87,7 @@ t( 'Token geht nicht an Look-alike-Hosts (github.com.evil.example)', empty( U::a
 
 section( 'Updater: Abschalten' );
 update_option( 'll16_settings', [ 'updates' => false ] );
-rel( '0.2.1' );
+rel( '0.8.1' );
 clear_reqs();
 t( 'Update-Prüfung abgeschaltet: kein Eintrag und keine Anfrage', null === $check() && [] === reqs() );
 update_option( 'll16_settings', [] );
@@ -96,16 +96,16 @@ delete_option( 'll16_settings' );
 
 section( 'Updater: Admin-Oberfläche' );
 $admin = ( function () { $jar = [ 'wordpress_test_cookie' => 'WP Cookie check' ]; http( 'POST', '/wp-login.php', [ 'log' => 'admin', 'pwd' => 'admin', 'wp-submit' => 'Log In', 'testcookie' => '1' ], $jar ); return $jar; } )();
-rel( '0.2.1' );
+rel( '0.8.1' );
 delete_transient( U::TRANSIENT );
 $pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=status', [], $admin )['body'];
 t( 'Status-Tab zeigt installierte Version und Prüfen-Schaltfläche', str_contains( $pg, 'Plugin-Updates' ) && str_contains( $pg, 'Installiert:' ) && str_contains( $pg, 'Jetzt auf Updates prüfen' ) );
 t( 'Kein Token-Hinweis, solange die Prüfung funktioniert (öffentliches Repo braucht keins)', ! str_contains( $pg, 'LL16_GITHUB_TOKEN' ) );
 preg_match_all( '/name="_wpnonce" value="([^"]+)"/', $pg, $nn );
 $r = http( 'POST', '/wp-admin/admin-post.php', [ 'action' => 'll16_check_update', '_wpnonce' => end( $nn[1] ) ], $admin );
-t( 'Prüfen-Schaltfläche → Weiterleitung mit Ergebnis', 302 === $r['code'] && str_contains( rawurldecode( (string) $r['headers']['location'] ), '0.2.1' ), (string) ( $r['headers']['location'] ?? '' ) );
+t( 'Prüfen-Schaltfläche → Weiterleitung mit Ergebnis', 302 === $r['code'] && str_contains( rawurldecode( (string) $r['headers']['location'] ), '0.8.1' ), (string) ( $r['headers']['location'] ?? '' ) );
 $pg2 = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=status', [], $admin )['body'];
-t( 'Danach: „Neueste Version: 0.2.1“ und Link zum Aktualisieren', str_contains( $pg2, '0.2.1' ) && str_contains( $pg2, 'update-core.php' ) );
+t( 'Danach: „Neueste Version: 0.8.1“ und Link zum Aktualisieren', str_contains( $pg2, '0.8.1' ) && str_contains( $pg2, 'update-core.php' ) );
 $r = http( 'POST', '/wp-admin/admin-post.php', [ 'action' => 'll16_check_update' ], $admin );
 t( 'Prüfen ohne Nonce abgelehnt', $r['code'] >= 400 );
 $kunde = [];
@@ -121,7 +121,7 @@ delete_transient( U::TRANSIENT );
 U::latest( true );
 $pg3 = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=status', [], $admin )['body'];
 t( 'Prüfung fehlgeschlagen → Hinweis auf Token (privates Repo) und „letzte Prüfung fehlgeschlagen“', str_contains( $pg3, 'LL16_GITHUB_TOKEN' ) && str_contains( $pg3, 'fehlgeschlagen' ) );
-rel( '0.2.1' );
+rel( '0.8.1' );
 delete_transient( U::TRANSIENT );
 
 section( 'Updater: Aufräumen' );

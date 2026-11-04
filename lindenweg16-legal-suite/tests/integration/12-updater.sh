@@ -16,8 +16,8 @@ ver()  { $WP plugin get lindenweg16-legal-suite --field=version 2>/dev/null | ta
 
 echo; echo "== Update über WordPress (WP-CLI) =="
 mkdir -p "$WORK/files" "$WORK/build020" "$WORK/build021"
-# Pakete bauen: 0.2.0 (installiert) und 0.2.1 (Update)
-for v in 0.2.0 0.2.1; do
+# Pakete bauen: 0.8.0 (installiert) und 0.8.1 (Update)
+for v in 0.8.0 0.8.1; do
   B="$WORK/build${v//./}"; mkdir -p "$B"
   cp -r "$PLUGIN_SRC/." "$B/lindenweg16-legal-suite"
   rm -rf "$B/lindenweg16-legal-suite/dist" "$B/lindenweg16-legal-suite/tests/e2e/node_modules"
@@ -26,9 +26,9 @@ for v in 0.2.0 0.2.1; do
   cp "$B/out/"* "$WORK/files/"
 done
 ls "$WORK/files" | sed 's/^/        /'
-# fehlerhaftes Paket 0.2.2: Inhalt von 0.2.1, aber falsche Prüfsumme
-cp "$WORK/files/lindenweg16-legal-suite-0.2.1.zip" "$WORK/files/lindenweg16-legal-suite-0.2.2.zip"
-echo "0000000000000000000000000000000000000000000000000000000000000000  lindenweg16-legal-suite-0.2.2.zip" > "$WORK/files/lindenweg16-legal-suite-0.2.2.zip.sha256"
+# fehlerhaftes Paket 0.8.2: Inhalt von 0.8.1, aber falsche Prüfsumme
+cp "$WORK/files/lindenweg16-legal-suite-0.8.1.zip" "$WORK/files/lindenweg16-legal-suite-0.8.2.zip"
+echo "0000000000000000000000000000000000000000000000000000000000000000  lindenweg16-legal-suite-0.8.2.zip" > "$WORK/files/lindenweg16-legal-suite-0.8.2.zip.sha256"
 
 # Mock-Server (alte Instanz auf dem Port beenden, sonst antwortet ein Server mit veralteten Dateien)
 pkill -f "php -S 127.0.0.1:$PORT" 2>/dev/null; sleep 0.5
@@ -46,10 +46,10 @@ json.dump({"tag_name":"v"+v,"draft":False,"prerelease":False,"html_url":"https:/
 PY
 }
 
-# Plugin: Symlink → echte Kopie von 0.2.0
+# Plugin: Symlink → echte Kopie von 0.8.0
 LINK_TARGET="$(readlink "$PLUG" || true)"
 unlink "$PLUG" 2>/dev/null
-unzip -q "$WORK/files/lindenweg16-legal-suite-0.2.0.zip" -d "$WP_PATH/wp-content/plugins/"
+unzip -q "$WORK/files/lindenweg16-legal-suite-0.8.0.zip" -d "$WP_PATH/wp-content/plugins/"
 cleanup() {
   rm -rf "$WP_PATH/wp-content/plugins/lindenweg16-legal-suite"
   [ -n "$LINK_TARGET" ] && ln -sfn "$LINK_TARGET" "$PLUG"
@@ -61,46 +61,46 @@ cleanup() {
 $WP plugin activate lindenweg16-legal-suite >/dev/null 2>&1
 $WP option update ll16_test_update_api "$BASEURL" >/dev/null
 $WP option update ll16_modules '{"consent":true,"gate":true,"legal":true,"withdrawal":true,"checkout":true,"product":true,"forms":true,"security":true,"monitor":true}' --format=json >/dev/null
-[ "$(ver)" = "0.2.0" ] && ok "Ausgangslage: echte Kopie, Version 0.2.0" || fail "Ausgangsversion: $(ver)"
+[ "$(ver)" = "0.8.0" ] && ok "Ausgangslage: echte Kopie, Version 0.8.0" || fail "Ausgangsversion: $(ver)"
 
 # A) PHP-Tests (Logik, Cache, Ungültiges, Admin)
-rel 0.2.1
+rel 0.8.1
 MOCK_DIR="$WORK" $WP eval-file "$HERE/12-updater.php" 2>&1 | grep -v "_load_textdomain_just_in_time" > "$WORK/a.out"
 grep -E "FAIL|bestanden" "$WORK/a.out"
 if ! grep -q " 0 fehlgeschlagen" "$WORK/a.out"; then FAIL=1; echo "  FAIL  Teil A (PHP-Tests) nicht sauber durchgelaufen:"; head -8 "$WORK/a.out" | cut -c1-240; fi
 
-# WP-CLI cached heruntergeladene Pakete nach Dateiname: alte Test-Pakete 0.2.1 würden sonst (zu Recht) an der Prüfsumme scheitern
+# WP-CLI cached heruntergeladene Pakete nach Dateiname: alte Test-Pakete 0.8.1 würden sonst (zu Recht) an der Prüfsumme scheitern
 $WP cli cache clear >/dev/null 2>&1
 
-# B) Echtes Update 0.2.0 → 0.2.1 ohne Token
-rel 0.2.1
+# B) Echtes Update 0.8.0 → 0.8.1 ohne Token
+rel 0.8.1
 $WP option update ll16_settings '{}' --format=json >/dev/null
 : > "$WORK/requests.log"
 $WP eval 'delete_transient("ll16_update_info"); delete_site_transient("update_plugins");' >/dev/null 2>&1
 out="$($WP plugin update lindenweg16-legal-suite 2>&1 | grep -v textdomain)"
 echo "$out" | sed 's/^/        /' | head -8
-[ "$(ver)" = "0.2.1" ] && ok "Update 0.2.0 → 0.2.1 über WordPress installiert" || fail "Version nach Update: $(ver)"
+[ "$(ver)" = "0.8.1" ] && ok "Update 0.8.0 → 0.8.1 über WordPress installiert" || fail "Version nach Update: $(ver)"
 $WP plugin is-active lindenweg16-legal-suite && ok "Plugin ist nach dem Update weiterhin aktiv" || fail "Plugin nach Update inaktiv"
-grep -q "'0.2.1'" "$PLUG/lindenweg16-legal-suite.php" && ok "Dateien wurden ersetzt (LL16_VERSION 0.2.1)" || fail "Dateien nicht ersetzt"
+grep -q "'0.8.1'" "$PLUG/lindenweg16-legal-suite.php" && ok "Dateien wurden ersetzt (LL16_VERSION 0.8.1)" || fail "Dateien nicht ersetzt"
 [ "$(grep -c '"auth": "[^"]' "$WORK/requests.log")" = "0" ] && ok "Ohne Token wurde kein Authorization-Header gesendet" || fail "Token ohne Konfiguration gesendet"
 code=$(curl -s -o /dev/null -w "%{http_code}" "$WP_URL/" ); [ "$code" = "200" ] && ok "Website nach Update erreichbar ($code)" || fail "Website nach Update: $code"
 $WP option get ll16_modules --format=json | grep -q '"consent":true' && ok "Einstellungen (Module) nach dem Update erhalten" || fail "Einstellungen verloren"
-$WP eval 'echo (int) (get_option("ll16_db_version") === LL16_VERSION);' 2>/dev/null | tail -1 | grep -q 1 && ok "DB-Version auf 0.2.1 hochgezogen (Upgrade-Routine lief)" || fail "DB-Version nicht aktualisiert"
+$WP eval 'echo (int) (get_option("ll16_db_version") === LL16_VERSION);' 2>/dev/null | tail -1 | grep -q 1 && ok "DB-Version auf 0.8.1 hochgezogen (Upgrade-Routine lief)" || fail "DB-Version nicht aktualisiert"
 
 $WP cli cache clear >/dev/null 2>&1
 # C) Manipuliertes Paket (falsche Prüfsumme) wird NICHT installiert
-rel 0.2.2
+rel 0.8.2
 $WP eval 'delete_transient("ll16_update_info"); delete_site_transient("update_plugins");' >/dev/null 2>&1
 out="$($WP plugin update lindenweg16-legal-suite 2>&1 | grep -v textdomain)"
 echo "$out" | grep -qi "Prüfsumme" && ok "Falsche Prüfsumme → Update mit Fehlermeldung abgebrochen" || fail "Keine Prüfsummen-Meldung: $out"
-[ "$(ver)" = "0.2.1" ] && ok "Version bleibt nach abgelehntem Paket bei 0.2.1" || fail "Version nach Manipulation: $(ver)"
+[ "$(ver)" = "0.8.1" ] && ok "Version bleibt nach abgelehntem Paket bei 0.8.1" || fail "Version nach Manipulation: $(ver)"
 
 # D) Mit Token (privates Repo): Header nur an API/GitHub-Hosts, Download über API-Asset-URL mit octet-stream
-rel 0.2.1   # gleiche Version → kein Update; nur Prüfung
+rel 0.8.1   # gleiche Version → kein Update; nur Prüfung
 $WP option update ll16_test_token 'github_pat_TESTTOKEN' >/dev/null
 : > "$WORK/requests.log"
 $WP eval 'delete_transient("ll16_update_info"); $i = \Lindenweg16\Legal\Core\GithubUpdater::latest(true); echo $i ? $i["version"]."|".$i["package"] : "null";' 2>/dev/null | tail -1 > "$WORK/tok.out"
-grep -q "releases/assets/lindenweg16-legal-suite-0.2.1.zip" "$WORK/tok.out" && ok "Mit Token: Paket-URL ist die API-Asset-URL (privates Repo)" || fail "Paket-URL mit Token: $(cat "$WORK/tok.out")"
+grep -q "releases/assets/lindenweg16-legal-suite-0.8.1.zip" "$WORK/tok.out" && ok "Mit Token: Paket-URL ist die API-Asset-URL (privates Repo)" || fail "Paket-URL mit Token: $(cat "$WORK/tok.out")"
 python3 - "$WORK/requests.log" <<'PY' && ok "Mit Token: API-Aufrufe tragen 'Bearer'-Header" || fail "Authorization fehlt"
 import json,sys
 r=[json.loads(l) for l in open(sys.argv[1]) if l.strip()]
