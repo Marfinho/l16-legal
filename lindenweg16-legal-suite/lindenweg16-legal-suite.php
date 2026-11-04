@@ -2,11 +2,12 @@
 /**
  * Plugin Name:       Lindenweg16 Legal Suite
  * Description:       Consent, Rechtstexte, Widerrufsfunktion, Checkout-Compliance und Compliance-Monitor für lindenweg16.de. Rechtstexte sind Entwürfe und nicht anwaltlich geprüft.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Requires at least: 6.5
  * Requires PHP:      8.3
  * Author:            Lindenweg16
  * License:           Proprietary
+ * Update URI:        https://github.com/Marfinho/l16-legal
  * Text Domain:       ll16-legal
  *
  * WC requires at least: 9.0
@@ -18,7 +19,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LL16_VERSION', '0.1.0' );
+define( 'LL16_VERSION', '0.2.0' );
 define( 'LL16_FILE', __FILE__ );
 define( 'LL16_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LL16_URL', plugin_dir_url( __FILE__ ) );

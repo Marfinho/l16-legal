@@ -86,6 +86,11 @@ final class PureLogicTest extends TestCase {
 		$this->assertSame( [], Contacts::deviations( '<p>Telefon: 01567373047</p><h2>2. Deine Rechte</h2>', $m ) );
 	}
 
+	public function test_dates_are_not_phone_numbers(): void {
+		$m = [ 'email' => 'a@b.de', 'phone' => '01567373047' ];
+		$this->assertSame( [], Contacts::deviations( '<p>Stand: 04.11.2026 und 01.02.26, Tel 01567373047</p>', $m ) );
+	}
+
 	public function test_gpsr_and_claims(): void {
 		$this->assertCount( 4, Gpsr::missing( [] ) );
 		$this->assertSame( [], Gpsr::missing( array_fill_keys( array_keys( Gpsr::REQUIRED ), 'x' ) ) );

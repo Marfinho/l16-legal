@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Lindenweg16\Legal\Core\Admin;
 
+use Lindenweg16\Legal\Core\GithubUpdater;
 use Lindenweg16\Legal\Core\Masterdata;
 use Lindenweg16\Legal\Core\Modules;
 use Lindenweg16\Legal\Core\ServiceRegistry;
@@ -92,6 +93,7 @@ final class Page {
 						'hsts_max_age'           => max( 0, (int) ( $in['hsts_max_age'] ?? 604800 ) ),
 						'hsts_subdomains'        => ! empty( $in['hsts_subdomains'] ),
 						'footer_links'           => ! empty( $in['footer_links'] ),
+						'updates'                => ! empty( $in['updates'] ),
 						'newsletter_enabled'     => ! empty( $in['newsletter_enabled'] ),
 						'notify_enabled'         => ! empty( $in['notify_enabled'] ),
 						'retention_anonymize'    => ! empty( $in['retention_anonymize'] ),
@@ -195,6 +197,7 @@ final class Page {
 			$colour = $sum['fail'] ? '#d63638' : ( $sum['warn'] ? '#dba617' : '#00a32a' );
 			printf( '<p><span style="display:inline-block;width:14px;height:14px;border-radius:50%%;background:%s;vertical-align:middle"></span> <strong>%d Fehler, %d Warnungen, %d in Ordnung</strong> (Stand %s UTC)</p>', esc_attr( $colour ), (int) $sum['fail'], (int) $sum['warn'], (int) $sum['ok'], esc_html( (string) $last['time'] ) );
 		}
+		$this->update_box();
 		$legacy = \Lindenweg16\Legal\Gate\Module::active_legacy();
 		if ( $legacy ) {
 			echo '<h3>Altplugins noch aktiv</h3><ul>';
@@ -204,6 +207,34 @@ final class Page {
 			}
 			echo '</ul>';
 		}
+	}
+
+	/** Plugin-Updates: Stand und Prüfen-Schaltfläche. */
+	private function update_box(): void {
+		echo '<h2>Plugin-Updates</h2>';
+		if ( ! GithubUpdater::enabled() ) {
+			echo '<p>Update-Prüfung ist abgeschaltet (Einstellungen). Installiert: Version ' . esc_html( LL16_VERSION ) . '.</p>';
+			return;
+		}
+		$cached = get_transient( GithubUpdater::TRANSIENT );
+		$info   = is_array( $cached ) && empty( $cached['error'] ) ? $cached : null;
+		echo '<p>Installiert: <strong>' . esc_html( LL16_VERSION ) . '</strong>';
+		if ( $info ) {
+			$newer = version_compare( (string) $info['version'], LL16_VERSION, '>' );
+			echo ' · Neueste Version: <strong>' . esc_html( (string) $info['version'] ) . '</strong> ' . ( $newer ? '<a href="' . esc_url( admin_url( 'update-core.php' ) ) . '">jetzt aktualisieren</a>' : '(aktuell)' );
+		} elseif ( is_array( $cached ) ) {
+			echo ' · <span style="color:#d63638">letzte Prüfung fehlgeschlagen</span>';
+		} else {
+			echo ' · noch nicht geprüft';
+		}
+		echo '</p>';
+		if ( ! defined( 'LL16_GITHUB_TOKEN' ) ) {
+			echo '<p class="description">Das Repository ist privat: Ohne Zugriffs-Token in der <code>wp-config.php</code> (<code>define( \'LL16_GITHUB_TOKEN\', \'…\' );</code>, nur Leserecht „Contents“) findet WordPress keine Updates. Siehe README, Abschnitt „Updates“.</p>';
+		}
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="ll16_check_update">';
+		wp_nonce_field( 'll16_check_update' );
+		submit_button( 'Jetzt auf Updates prüfen', 'secondary', 'submit', false );
+		echo '</form>';
 	}
 
 	private function tab_master(): void {
@@ -325,6 +356,7 @@ final class Page {
 		printf( '<tr><th>Kontaktanfragen Aufbewahrung (Tage)</th><td><input type="number" name="s[contact_retention_days]" value="%d"></td></tr>', (int) ( $s['contact_retention_days'] ?? 90 ) );
 		printf( '<tr><th>HSTS max-age (Sekunden)</th><td><input type="number" name="s[hsts_max_age]" value="%d"><p class="description">Start: 604800 (1 Woche). Erst nach Beobachtung auf 31536000 erhöhen.</p></td></tr>', (int) ( $s['hsts_max_age'] ?? 604800 ) );
 		printf( '<tr><th>HSTS Subdomains</th><td><label><input type="checkbox" name="s[hsts_subdomains]" value="1" %s> includeSubDomains</label></td></tr>', checked( ! empty( $s['hsts_subdomains'] ), true, false ) );
+		printf( '<tr><th>Auf Plugin-Updates prüfen</th><td><label><input type="checkbox" name="s[updates]" value="1" %s> Der Server fragt GitHub nach neuen Versionen (nur der Server, keine Besucherdaten).</label></td></tr>', checked( GithubUpdater::enabled(), true, false ) );
 		printf( '<tr><th>Footer-Links ausgeben</th><td><label><input type="checkbox" name="s[footer_links]" value="1" %s> Impressum, Datenschutz, AGB, Widerruf, „Vertrag widerrufen“, Cookie-Einstellungen. Abschalten, wenn das Theme diese Links selbst setzt.</label></td></tr>', checked( ! isset( $s['footer_links'] ) || ! empty( $s['footer_links'] ), true, false ) );
 		printf( '<tr><th>Newsletter aktiv</th><td><label><input type="checkbox" name="s[newsletter_enabled]" value="1" %s> (erscheint dann in der Datenschutzerklärung)</label></td></tr>', checked( ! empty( $s['newsletter_enabled'] ), true, false ) );
 		printf( '<tr><th>„Benachrichtige mich" aktiv</th><td><label><input type="checkbox" name="s[notify_enabled]" value="1" %s></label></td></tr>', checked( ! empty( $s['notify_enabled'] ), true, false ) );

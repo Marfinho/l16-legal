@@ -35,6 +35,7 @@ final class Plugin {
 		( new Admin\Page() )->register();
 		Updater::maybe_upgrade();
 		Assets::init();
+		GithubUpdater::init();
 		FooterLinks::init();
 
 		$flags = Modules::flags();

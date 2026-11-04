@@ -21,3 +21,11 @@ if ( get_option( 'll16_test_inject_third_party' ) ) {
 		wp_enqueue_script( 'fake-recaptcha', 'https://www.google.com/recaptcha/api.js?enq=1', [], null, true );
 	} );
 }
+
+// Update-Tests: Mock-GitHub und optionales Token
+if ( ! defined( 'LL16_UPDATE_API_BASE' ) && get_option( 'll16_test_update_api' ) ) {
+	define( 'LL16_UPDATE_API_BASE', (string) get_option( 'll16_test_update_api' ) );
+}
+if ( ! defined( 'LL16_GITHUB_TOKEN' ) && get_option( 'll16_test_token' ) ) {
+	define( 'LL16_GITHUB_TOKEN', (string) get_option( 'll16_test_token' ) );
+}

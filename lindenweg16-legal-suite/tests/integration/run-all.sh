@@ -47,6 +47,9 @@ if [ -f "$WP_PATH/wp-content/debug.log" ]; then
   grep -c "lindenweg16" "$WP_PATH/wp-content/debug.log" | sed 's/^/Einträge mit Plugin-Bezug: /'
 fi
 
+echo; echo "######## 12-updater.sh (echtes Plugin-Update über WordPress)"
+bash "$HERE/12-updater.sh" 2>&1 | grep -v "^        " | tee /tmp/ll16-12.out | grep -E "FAIL|fehlgeschlagen|FEHLER|bestanden"; grep -q "^0 fehlgeschlagen" /tmp/ll16-12.out || FAIL=1
+
 echo; echo "######## 11-no-woocommerce.sh"
 bash "$HERE/11-no-woocommerce.sh" 2>&1 | tee /tmp/ll16-11.out | grep -E "FAIL|fehlgeschlagen|FEHLER"; grep -q "^0 fehlgeschlagen" /tmp/ll16-11.out || FAIL=1
 

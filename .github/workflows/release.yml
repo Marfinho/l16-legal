@@ -1,0 +1,37 @@
+name: Release
+# Neues Release: Version im Plugin (Header + LL16_VERSION) erhöhen, committen, dann Tag setzen:
+#   git tag v0.2.1 && git push origin v0.2.1
+# Der Workflow baut das Paket und veröffentlicht es als Release-Asset; WordPress bietet es dann als Update an.
+on:
+  push:
+    tags: [ 'v*' ]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.3' }
+      - name: Version prüfen (Tag = Plugin-Header = LL16_VERSION)
+        working-directory: lindenweg16-legal-suite
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          HEADER="$(grep -m1 -E '^ \* Version:' lindenweg16-legal-suite.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')"
+          CONST="$(grep -m1 "define( 'LL16_VERSION'" lindenweg16-legal-suite.php | sed -E "s/.*'LL16_VERSION', '([^']+)'.*/\1/")"
+          echo "Tag=$TAG Header=$HEADER Konstante=$CONST"
+          [ "$TAG" = "$HEADER" ] && [ "$TAG" = "$CONST" ]
+      - name: Syntax und Unit-Tests
+        working-directory: lindenweg16-legal-suite
+        run: |
+          find src -name '*.php' -print0 | xargs -0 -n1 php -l
+          php tests/run-local.php
+      - name: Paket bauen
+        working-directory: lindenweg16-legal-suite
+        run: bin/build-zip.sh "$GITHUB_WORKSPACE/dist"
+      - name: Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.zip.sha256 --title "Lindenweg16 Legal Suite ${GITHUB_REF_NAME#v}" --generate-notes

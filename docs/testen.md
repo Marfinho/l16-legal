@@ -8,6 +8,7 @@ Vier Ebenen, alle gegen **echte** Software (WordPress 7.1.3, WooCommerce 11.2.1,
 | 2 Integration | `tests/integration/0*.php` | läuft per `wp eval-file` im geladenen WordPress, dazu HTTP-Requests gegen den Webserver (Aktivierung/Schema, Rechtstexte, Consent-REST/Rewriter, Widerruf, Checkout/Produkt/Store-API, Formulare/Newsletter/DSGVO, Header/Monitor, Admin, Deinstallation) |
 | 3 Browser | `tests/e2e/*.spec.ts` | Playwright mit Chromium: Banner-Verhalten, Allowlist für Requests/Cookies auf allen Seiten (vorher/Ablehnen/Akzeptieren), Block-Checkout mit echter Bestellung, Skript-Scope für Zahlungsdienste |
 | 4 CLI | `run-all.sh` | `wp ll16-legal check` (Exit-Code) |
+| 6 Plugin-Update | `12-updater.sh`, `12-updater.php` | echtes `wp plugin update` gegen einen Mock der GitHub-API: Update, Prüfsummen-Schutz, Token nur an GitHub, ungültige Releases, Admin-Schaltfläche |
 | 5 Randfälle | `10-edge-cases.php`, `11-no-woocommerce.sh`, `e2e/ux.spec.ts` | Unicode/Injection/Mehrfachklick/Rate-Limits/Mailfehler, Footer, Stammdaten-Validierung, Versandkosten-Konsistenz, klassischer Checkout, Upgrade, WooCommerce aus; axe (WCAG 2.1 AA), Tastatur, ohne JS, 320 px, Dark Mode, Zoom, kaputte Cookies |
 
 ## Lauf von Null (ohne Docker/MySQL)

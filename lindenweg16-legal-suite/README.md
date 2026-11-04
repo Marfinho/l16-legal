@@ -50,6 +50,25 @@ Banner und Einwilligungsstatus werden rein clientseitig gerendert. Die Seiten `/
 ### Produktfelder
 Im Reiter *Allgemein*: Lieferzeit, „Individuell angefertigt" (löst im Checkout eine zusätzliche Bestätigung aus), GPSR-Pflichtfelder. Ein Produkt wird nicht veröffentlicht, solange GPSR-Felder oder das Produktbild fehlen.
 
+## Updates (über WordPress)
+
+Updates erscheinen wie bei jedem Plugin unter *Dashboard → Aktualisierungen* und in der Plugin-Liste („Update verfügbar“), auch per `wp plugin update lindenweg16-legal-suite`. Quelle sind die **GitHub-Releases** dieses Repositorys; das Paket wird per SHA-256-Prüfsumme geprüft. Es wird nur der Server kontaktiert (`api.github.com`), keine Besucherdaten.
+
+**Das Repository ist privat. Einmalig einrichten:**
+1. GitHub → Settings → Developer settings → *Fine-grained personal access tokens* → neues Token nur für das Repository `Marfinho/l16-legal`, Berechtigung **Contents: Read-only**, möglichst lange Laufzeit.
+2. In die `wp-config.php` (über der Zeile „That's all, stop editing“): `define( 'LL16_GITHUB_TOKEN', 'github_pat_…' );`
+   Das Token liegt bewusst nur dort, nie in der Datenbank. Es wird nur an GitHub-Hosts gesendet.
+3. Im Plugin *Lindenweg16 Recht → Status → „Jetzt auf Updates prüfen“*.
+
+**Erste Installation:** Release-Datei `lindenweg16-legal-suite-<version>.zip` von der GitHub-Release-Seite laden und unter *Plugins → Installieren → Plugin hochladen* einspielen. Ab da kommen Updates automatisch.
+
+**Neues Release veröffentlichen:**
+1. In `lindenweg16-legal-suite.php` die Version erhöhen (Header `Version:` **und** `LL16_VERSION`), committen und pushen.
+2. `git tag v0.2.1 && git push origin v0.2.1` – der Workflow `release.yml` prüft Tag = Version, führt Tests aus, baut das Paket (`bin/build-zip.sh`) und veröffentlicht Zip + Prüfsumme.
+3. Auf der Seite erscheint das Update innerhalb von 12 Stunden (oder sofort über „Jetzt auf Updates prüfen“).
+
+Abschalten: *Einstellungen → „Auf Plugin-Updates prüfen“*. **Vor jedem Live-Update ein Backup** und die Release-Notizen lesen; Rechtstexte werden bei einem Update nicht überschrieben (sie entstehen erst durch „Seiten erzeugen“).
+
 ## Entwicklung
 
 ```
