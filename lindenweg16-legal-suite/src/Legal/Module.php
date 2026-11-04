@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Lindenweg16\Legal\Legal;
 
+use Lindenweg16\Legal\Core\Diagnostics;
+
 /**
  * M2 – Rechtstexte-Engine: feste Slugs, 301-Weiterleitungen, Versionierung,
  * unveränderlicher Snapshot je Bestellung, Platzhalter-Linter beim Veröffentlichen.
@@ -54,37 +56,12 @@ final class Module {
 	public static function sync_pages( bool $publish = false ): array {
 		$result = [];
 		foreach ( array_keys( Texts::PAGES ) as $slug ) {
-			$content = Texts::render( $slug );
-			$errors  = Linter::check( $content );
-			$page    = get_page_by_path( $slug, OBJECT, 'page' );
-			$hash    = md5( $content );
-			$args    = [
-				'post_title'   => Texts::PAGES[ $slug ],
-				'post_name'    => $slug,
-				'post_type'    => 'page',
-				'post_content' => $content,
-			];
-			if ( $page instanceof \WP_Post ) {
-				$args['ID'] = $page->ID;
-			} else {
-				$args['post_status'] = 'draft';
-			}
-			if ( $publish && [] === $errors ) {
-				$args['post_status'] = 'publish';
-			}
-			$id = wp_insert_post( $args, true );
-			if ( is_wp_error( $id ) ) {
-				$result[ $slug ] = 'Fehler: ' . $id->get_error_message();
-				continue;
-			}
-			self::record_version( $slug, $hash );
-			if ( [] === $errors ) {
-				$result[ $slug ] = 'ok';
-			} else {
-				$missing         = Texts::missing_fields( $slug );
-				$result[ $slug ] = [] !== $missing
-					? 'Linter: als Entwurf angelegt, nicht veröffentlicht. In den Stammdaten fehlt: ' . implode( ', ', $missing ) . '. Danach erneut „Seiten erzeugen“.'
-					: 'Linter: als Entwurf angelegt, nicht veröffentlicht. ' . implode( '; ', $errors );
+			try {
+				$result[ $slug ] = self::sync_one( $slug, $publish );
+			} catch ( \Throwable $e ) {
+				// Eine fehlerhafte Seite darf den Rest nicht abbrechen; die Ursache wird angezeigt statt einer weißen Seite.
+				$result[ $slug ] = 'FEHLER: ' . get_class( $e ) . ': ' . $e->getMessage() . ' (' . basename( $e->getFile() ) . ':' . $e->getLine() . ')';
+				Diagnostics::remember( $e, 'Seite /' . $slug . '/' );
 			}
 		}
 		self::ensure_withdrawal_page( $publish );
@@ -111,6 +88,40 @@ final class Module {
 		wp_insert_post( $args );
 	}
 
+	/** Eine Seite erzeugen/aktualisieren. @return string Ergebnistext */
+	private static function sync_one( string $slug, bool $publish ): string {
+		$content = Texts::render( $slug );
+		$errors  = Linter::check( $content );
+		$page    = get_page_by_path( $slug, OBJECT, 'page' );
+		$hash    = md5( $content );
+		$args    = [
+			'post_title'   => Texts::PAGES[ $slug ],
+			'post_name'    => $slug,
+			'post_type'    => 'page',
+			'post_content' => $content,
+		];
+		if ( $page instanceof \WP_Post ) {
+			$args['ID'] = $page->ID;
+		} else {
+			$args['post_status'] = 'draft';
+		}
+		if ( $publish && [] === $errors ) {
+			$args['post_status'] = 'publish';
+		}
+		$id = wp_insert_post( $args, true );
+		if ( is_wp_error( $id ) ) {
+			return 'Fehler: ' . $id->get_error_message();
+		}
+		self::record_version( $slug, $hash );
+		if ( [] === $errors ) {
+			return 'ok';
+		}
+		$missing = Texts::missing_fields( $slug );
+		return [] !== $missing
+			? 'Linter: als Entwurf angelegt, nicht veröffentlicht. In den Stammdaten fehlt: ' . implode( ', ', $missing ) . '. Danach erneut „Seiten erzeugen“.'
+			: 'Linter: als Entwurf angelegt, nicht veröffentlicht. ' . implode( '; ', $errors );
+	}
+
 	private static function record_version( string $slug, string $hash ): void {
 		$versions = (array) get_option( 'll16_text_versions', [] );
 		$last     = $versions[ $slug ] ?? [];
@@ -130,8 +141,21 @@ final class Module {
 			wp_die( esc_html__( 'Keine Berechtigung.', 'll16-legal' ), 403 );
 		}
 		check_admin_referer( 'll16_sync_pages' );
+		Diagnostics::arm( 'Seiten erzeugen' );   // fängt auch harte PHP-Fehler ab und zeigt sie danach im Plugin an
+		if ( function_exists( 'wp_raise_memory_limit' ) ) {
+			wp_raise_memory_limit( 'admin' );
+		}
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 120 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, Squiz.PHP.DiscouragedFunctions
+		}
 		$publish = ! empty( $_POST['publish'] );
-		$res     = self::sync_pages( $publish );
+		try {
+			$res = self::sync_pages( $publish );
+		} catch ( \Throwable $e ) {
+			$res = [ 'Allgemein' => 'FEHLER: ' . get_class( $e ) . ': ' . $e->getMessage() . ' (' . basename( $e->getFile() ) . ':' . $e->getLine() . ')' ];
+			Diagnostics::remember( $e, 'Seiten erzeugen' );
+		}
+		Diagnostics::disarm();
 		set_transient( 'll16_sync_result_' . get_current_user_id(), $res, 120 );
 		wp_safe_redirect( admin_url( 'admin.php?page=ll16-legal&tab=texts' ) );
 		exit;

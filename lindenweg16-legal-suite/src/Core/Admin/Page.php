@@ -29,6 +29,7 @@ final class Page {
 		add_action( 'admin_menu', [ $this, 'menu' ] );
 		add_action( 'admin_post_ll16_save', [ $this, 'save' ] );
 		add_action( 'admin_post_ll16_run_monitor', [ $this, 'run_monitor' ] );
+		add_action( 'admin_post_ll16_clear_error', [ $this, 'clear_error' ] );
 		add_action( 'admin_post_ll16_export', [ $this, 'export' ] );
 		add_action( 'admin_post_ll16_import', [ $this, 'import' ] );
 	}
@@ -198,6 +199,7 @@ final class Page {
 			printf( '<p><span style="display:inline-block;width:14px;height:14px;border-radius:50%%;background:%s;vertical-align:middle"></span> <strong>%d Fehler, %d Warnungen, %d in Ordnung</strong> (Stand %s UTC)</p>', esc_attr( $colour ), (int) $sum['fail'], (int) $sum['warn'], (int) $sum['ok'], esc_html( (string) $last['time'] ) );
 		}
 		$this->update_box();
+		$this->diagnostics_box();
 		$legacy = \Lindenweg16\Legal\Gate\Module::active_legacy();
 		if ( $legacy ) {
 			echo '<h3>Altplugins noch aktiv</h3><ul>';
@@ -207,6 +209,35 @@ final class Page {
 			}
 			echo '</ul>';
 		}
+	}
+
+	/** Diagnose: letzter Fehler und kopierbarer Systembericht. */
+	private function diagnostics_box(): void {
+		$last = \Lindenweg16\Legal\Core\Diagnostics::last();
+		echo '<h2>Diagnose</h2>';
+		if ( $last ) {
+			printf(
+				'<div class="notice notice-error inline"><p><strong>Letzter aufgezeichneter Fehler</strong> (%s, %s):<br><code>%s</code><br>Stelle: <code>%s</code></p></div>',
+				esc_html( wp_date( 'd.m.Y H:i', (int) $last['time'] ) ),
+				esc_html( (string) $last['context'] ),
+				esc_html( (string) $last['message'] ),
+				esc_html( (string) $last['where'] )
+			);
+		}
+		echo '<p>Bei Problemen diesen Bericht kopieren und mitschicken (enthält keine Passwörter):</p>';
+		echo '<textarea readonly rows="7" class="large-text code" onclick="this.select()">' . esc_textarea( \Lindenweg16\Legal\Core\Diagnostics::report() ) . '</textarea>';
+		if ( $last ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:.5rem"><input type="hidden" name="action" value="ll16_clear_error">';
+			wp_nonce_field( 'll16_clear_error' );
+			submit_button( 'Fehleranzeige zurücksetzen', 'secondary', 'submit', false );
+			echo '</form>';
+		}
+	}
+
+	public function clear_error(): void {
+		self::guard( 'll16_clear_error' );
+		\Lindenweg16\Legal\Core\Diagnostics::clear();
+		self::back( 'status', 'Fehleranzeige zurückgesetzt.' );
 	}
 
 	/** Plugin-Updates: Stand und Prüfen-Schaltfläche. */
@@ -307,6 +338,15 @@ final class Page {
 	private function tab_texts(): void {
 		$res = get_transient( 'll16_sync_result_' . get_current_user_id() );
 		echo '<h2>Rechtstexte (Entwurf, nicht anwaltlich geprüft)</h2>';
+		$last_err = \Lindenweg16\Legal\Core\Diagnostics::last();
+		if ( $last_err && 'Seiten erzeugen' === $last_err['context'] || ( $last_err && str_starts_with( (string) $last_err['context'], 'Seite /' ) ) ) {
+			printf(
+				'<div class="notice notice-error inline"><p><strong>Beim letzten Erzeugen ist ein Fehler aufgetreten</strong> (%s): <code>%s</code> – Stelle <code>%s</code>. Details und Systembericht unter „Status → Diagnose“.</p></div>',
+				esc_html( wp_date( 'd.m.Y H:i', (int) $last_err['time'] ) ),
+				esc_html( (string) $last_err['message'] ),
+				esc_html( (string) $last_err['where'] )
+			);
+		}
 		$missing_all = [];
 		foreach ( array_keys( \Lindenweg16\Legal\Legal\Texts::PAGES ) as $slug ) {
 			$missing_all = array_merge( $missing_all, \Lindenweg16\Legal\Legal\Texts::missing_fields( $slug ) );

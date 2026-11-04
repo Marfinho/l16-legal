@@ -21,7 +21,7 @@ $WP option update woocommerce_coming_soon no | tail -1
 $WP option update woocommerce_store_pages_only no | tail -1
 rm -f "$WP_PATH/wp-content/debug.log" "$WP_PATH/wp-content/mail.log"
 
-for f in 01-activation.php 02-legal.php 03-consent.php 04-withdrawal.php 05-checkout-product.php 06-forms.php 07-security-monitor.php 08-admin.php 10-edge-cases.php; do run "$f"; done
+for f in 01-activation.php 02-legal.php 03-consent.php 04-withdrawal.php 05-checkout-product.php 06-forms.php 07-security-monitor.php 08-admin.php 10-edge-cases.php 13-diagnostics.php; do run "$f"; done
 
 echo; echo "######## WP-CLI: wp ll16-legal check"
 $WP ll16-legal check --format=json > /tmp/ll16-cli.json 2>/tmp/ll16-cli.err; CLI=$?
@@ -37,7 +37,7 @@ if [ -n "${WP_URL:-}" ] && [ -d "$HERE/../e2e/node_modules" ]; then
     LL16_BASE_URL="$WP_URL" LL16_WP_PATH="$WP_PATH" LL16_WPCLI="$WPCLI" \
     LL16_PRODUCT_PATH="/product/${BASE_SLUG:-base}/" \
     LL16_PAGES="/,/shop/,/impressum/,/datenschutz/,/agb/,/widerruf/,/vertrag-widerrufen/,/versand-zahlung/,/cookies/,/cart/,/gate-test/" \
-    npx playwright test consent-behaviour.spec.ts consent.spec.ts checkout.spec.ts checkout-flow.spec.ts scope.spec.ts ux.spec.ts 2>&1 | tail -25) || FAIL=1
+    npx playwright test consent-behaviour.spec.ts consent.spec.ts checkout.spec.ts checkout-flow.spec.ts scope.spec.ts ux.spec.ts diagnose.spec.ts 2>&1 | tail -25) || FAIL=1
   $WP option delete ll16_services >/dev/null 2>&1
 fi
 
@@ -49,6 +49,9 @@ fi
 
 echo; echo "######## 12-updater.sh (echtes Plugin-Update über WordPress)"
 bash "$HERE/12-updater.sh" 2>&1 | grep -v "^        " | tee /tmp/ll16-12.out | grep -E "FAIL|fehlgeschlagen|FEHLER|bestanden"; grep -q "^0 fehlgeschlagen" /tmp/ll16-12.out || FAIL=1
+
+echo; echo "######## 13-diagnostics.sh (Fehlerseite nennt den Fehler)"
+bash "$HERE/13-diagnostics.sh" 2>&1 | tee /tmp/ll16-13.out | grep -E "FAIL|fehlgeschlagen|FEHLER"; grep -q "FAIL" /tmp/ll16-13.out && FAIL=1
 
 echo; echo "######## 11-no-woocommerce.sh"
 bash "$HERE/11-no-woocommerce.sh" 2>&1 | tee /tmp/ll16-11.out | grep -E "FAIL|fehlgeschlagen|FEHLER"; grep -q "^0 fehlgeschlagen" /tmp/ll16-11.out || FAIL=1

@@ -29,3 +29,14 @@ if ( ! defined( 'LL16_UPDATE_API_BASE' ) && get_option( 'll16_test_update_api' )
 if ( ! defined( 'LL16_GITHUB_TOKEN' ) && get_option( 'll16_test_token' ) ) {
 	define( 'LL16_GITHUB_TOKEN', (string) get_option( 'll16_test_token' ) );
 }
+
+// Diagnose-Test: ein „Fremdplugin“ hängt beim Speichern der AGB-Seite (Zeitlimit-Fatal)
+if ( get_option( 'll16_test_hang_agb' ) ) {
+	add_filter( 'wp_insert_post_data', function ( $d ) {
+		if ( ( $d['post_name'] ?? '' ) === 'agb' ) {
+			set_time_limit( 1 );
+			while ( true ) { $z = md5( (string) microtime() ); }
+		}
+		return $d;
+	} );
+}
