@@ -91,6 +91,11 @@ final class PureLogicTest extends TestCase {
 		$this->assertSame( [], Contacts::deviations( '<p>Stand: 04.11.2026 und 01.02.26, Tel 01567373047</p>', $m ) );
 	}
 
+	public function test_unresolved_placeholder_names(): void {
+		$this->assertSame( [ 'payment_methods_text', 'foo' ], Linter::unresolved( 'a {{payment_methods_text}} b {{#if foo}}x{{/if}} {{payment_methods_text}}' ) );
+		$this->assertSame( [], Linter::unresolved( '<p>sauber</p>' ) );
+	}
+
 	public function test_gpsr_and_claims(): void {
 		$this->assertCount( 4, Gpsr::missing( [] ) );
 		$this->assertSame( [], Gpsr::missing( array_fill_keys( array_keys( Gpsr::REQUIRED ), 'x' ) ) );

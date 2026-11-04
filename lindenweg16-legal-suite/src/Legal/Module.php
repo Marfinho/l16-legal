@@ -78,7 +78,14 @@ final class Module {
 				continue;
 			}
 			self::record_version( $slug, $hash );
-			$result[ $slug ] = [] === $errors ? 'ok' : 'Linter: ' . implode( '; ', $errors );
+			if ( [] === $errors ) {
+				$result[ $slug ] = 'ok';
+			} else {
+				$missing         = Texts::missing_fields( $slug );
+				$result[ $slug ] = [] !== $missing
+					? 'Linter: als Entwurf angelegt, nicht veröffentlicht. In den Stammdaten fehlt: ' . implode( ', ', $missing ) . '. Danach erneut „Seiten erzeugen“.'
+					: 'Linter: als Entwurf angelegt, nicht veröffentlicht. ' . implode( '; ', $errors );
+			}
 		}
 		self::ensure_withdrawal_page( $publish );
 		return $result;

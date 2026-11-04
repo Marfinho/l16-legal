@@ -13,6 +13,8 @@ $agb = get_page_by_path( 'agb' );
 t( 'AGB angelegt', (bool) $agb );
 t( 'AGB bleibt Entwurf (Zahlungsarten fehlen → Platzhalter)', $agb && 'draft' === $agb->post_status, $agb ? $agb->post_status : '' );
 t( 'Linter meldet Platzhalter', str_contains( (string) ( $res['agb'] ?? '' ), 'Linter' ), (string) ( $res['agb'] ?? '' ) );
+t( 'Meldung nennt das fehlende Stammdatenfeld verständlich („Zahlungsarten“) und den nächsten Schritt', str_contains( (string) $res['agb'], 'In den Stammdaten fehlt: Zahlungsarten' ) && str_contains( (string) $res['agb'], 'erneut' ) && ! str_contains( (string) $res['agb'], '{{' ), (string) $res['agb'] );
+t( 'Vorschau-Hilfsfunktion liefert dieselbe Angabe', [ 'Zahlungsarten' ] === Texts::missing_fields( 'agb' ) && [] === Texts::missing_fields( 'impressum' ) );
 t( 'Impressum ohne Platzhalter wird publiziert', 'publish' === get_page_by_path( 'impressum' )->post_status );
 
 section( 'Rechtstexte: vollständige Stammdaten' );

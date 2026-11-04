@@ -266,7 +266,7 @@ final class Page {
 		printf( '<tr><th>Kleinunternehmer (§ 19 UStG)</th><td><label><input type="checkbox" name="m[small_business]" value="1" %s> ja</label></td></tr>', checked( ! empty( $m['small_business'] ), true, false ) );
 		printf( '<tr><th>Schlichtung (VSBG)</th><td><label><input type="checkbox" name="m[adr_willing]" value="1" %s> bereit zur Teilnahme</label></td></tr>', checked( ! empty( $m['adr_willing'] ), true, false ) );
 		printf( '<tr><th>Lieferländer (ISO, Komma)</th><td><input class="regular-text" name="m[delivery_countries]" value="%s"></td></tr>', esc_attr( implode( ',', (array) $m['delivery_countries'] ) ) );
-		printf( '<tr><th>Zahlungsarten (Komma)</th><td><input class="large-text" name="m[payment_methods]" value="%s"><p class="description">z. B. PayPal, Kreditkarte, Apple Pay</p></td></tr>', esc_attr( implode( ', ', (array) $m['payment_methods'] ) ) );
+		printf( '<tr><th>Zahlungsarten (Komma, Pflicht)</th><td><input class="large-text" name="m[payment_methods]" value="%s"><p class="description">z. B. PayPal, Kreditkarte, Apple Pay</p></td></tr>', esc_attr( implode( ', ', (array) $m['payment_methods'] ) ) );
 		echo '</table>';
 		submit_button();
 		echo '</form>';
@@ -307,6 +307,18 @@ final class Page {
 	private function tab_texts(): void {
 		$res = get_transient( 'll16_sync_result_' . get_current_user_id() );
 		echo '<h2>Rechtstexte (Entwurf, nicht anwaltlich geprüft)</h2>';
+		$missing_all = [];
+		foreach ( array_keys( \Lindenweg16\Legal\Legal\Texts::PAGES ) as $slug ) {
+			$missing_all = array_merge( $missing_all, \Lindenweg16\Legal\Legal\Texts::missing_fields( $slug ) );
+		}
+		$missing_all = array_values( array_unique( $missing_all ) );
+		if ( $missing_all ) {
+			printf(
+				'<div class="notice notice-warning inline"><p><strong>Erst die Stammdaten vervollständigen:</strong> %s fehlt. Betroffene Seiten (z. B. AGB, Versand &amp; Zahlung) bleiben sonst Entwurf. <a href="%s">Zu den Stammdaten</a></p></div>',
+				esc_html( implode( ', ', $missing_all ) ),
+				esc_url( add_query_arg( [ 'page' => 'll16-legal', 'tab' => 'master' ], admin_url( 'admin.php' ) ) )
+			);
+		}
 		if ( is_array( $res ) ) {
 			echo '<ul>';
 			foreach ( $res as $slug => $r ) {
@@ -322,7 +334,8 @@ final class Page {
 		echo '</form><h3>Vorschau-Prüfung</h3><table class="widefat"><thead><tr><th>Seite</th><th>Linter</th></tr></thead><tbody>';
 		foreach ( \Lindenweg16\Legal\Legal\Texts::PAGES as $slug => $title ) {
 			$errors = \Lindenweg16\Legal\Legal\Linter::check( \Lindenweg16\Legal\Legal\Texts::render( $slug ) );
-			printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $title ), $errors ? '<span style="color:#d63638">' . esc_html( implode( '; ', $errors ) ) . '</span>' : 'sauber' );
+			$missing = \Lindenweg16\Legal\Legal\Texts::missing_fields( $slug );
+			printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $title ), $errors ? '<span style="color:#d63638">' . esc_html( $missing ? 'Stammdaten unvollständig: ' . implode( ', ', $missing ) : implode( '; ', $errors ) ) . '</span>' : 'sauber' );
 		}
 		echo '</tbody></table>';
 	}

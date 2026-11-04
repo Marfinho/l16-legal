@@ -32,4 +32,14 @@ final class Linter {
 		}
 		return $errors;
 	}
+
+	/**
+	 * Namen nicht aufgelöster {{platzhalter}} (ohne Duplikate).
+	 *
+	 * @return string[]
+	 */
+	public static function unresolved( string $html ): array {
+		preg_match_all( '/\{\{#?(?:if )?!?([a-z0-9_]+)\}\}/i', $html, $m );
+		return array_values( array_unique( $m[1] ) );
+	}
 }

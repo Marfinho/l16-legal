@@ -21,6 +21,32 @@ final class Texts {
 		'cookies'         => 'Cookie-Richtlinie',
 	];
 
+	/** Platzhalter → Bezeichnung des Feldes in den Stammdaten (für verständliche Fehlermeldungen). */
+	public const FIELD_LABELS = [
+		'payment_methods_text' => 'Zahlungsarten',
+		'name'                 => 'Name',
+		'street'               => 'Straße',
+		'zip'                  => 'PLZ',
+		'city'                 => 'Ort',
+		'shipping_cost'        => 'Versandkosten',
+		'delivery_time'        => 'Standard-Lieferzeit',
+		'hosting_provider'     => 'Hoster',
+		'shipping_carrier'     => 'Versanddienstleister',
+	];
+
+	/**
+	 * Fehlende Stammdaten für eine Seite, als lesbare Feldnamen.
+	 *
+	 * @return string[]
+	 */
+	public static function missing_fields( string $slug ): array {
+		$out = [];
+		foreach ( Linter::unresolved( self::render( $slug ) ) as $name ) {
+			$out[] = self::FIELD_LABELS[ $name ] ?? $name;
+		}
+		return array_values( array_unique( $out ) );
+	}
+
 	/** Alte Slugs → neue Slugs (301). */
 	public const REDIRECTS = [
 		'sample-page'          => 'agb',

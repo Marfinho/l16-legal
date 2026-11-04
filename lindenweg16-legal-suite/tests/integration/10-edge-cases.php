@@ -272,6 +272,18 @@ $page2 = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=master', [], $adm
 t( 'Hinweis erscheint nur einmal', ! str_contains( $page2, 'Nicht übernommen' ) );
 update_option( Masterdata::OPTION, $orig );
 
+section( 'Admin: Hinweis auf unvollständige Stammdaten vor „Seiten erzeugen“' );
+$m0 = Masterdata::all();
+$m1 = $m0; $m1['payment_methods'] = [];
+update_option( Masterdata::OPTION, $m1 );
+$pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=texts', [], $admin )['body'];
+t( 'Warnung „Erst die Stammdaten vervollständigen: Zahlungsarten fehlt“ mit Link', str_contains( $pg, 'Erst die Stammdaten vervollständigen' ) && str_contains( $pg, 'Zahlungsarten fehlt' ) && str_contains( $pg, 'tab=master' ) );
+t( 'Vorschau-Tabelle: „Stammdaten unvollständig: Zahlungsarten“ statt kryptischem Platzhalter', str_contains( $pg, 'Stammdaten unvollständig: Zahlungsarten' ) && ! str_contains( $pg, 'Nicht aufgelöster Platzhalter {{' ) );
+update_option( Masterdata::OPTION, $m0 );
+$pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=texts', [], $admin )['body'];
+t( 'Bei vollständigen Stammdaten keine Warnung', ! str_contains( $pg, 'Erst die Stammdaten vervollständigen' ) );
+t( 'Stammdaten-Formular kennzeichnet Zahlungsarten als Pflicht', str_contains( http( 'GET', '/wp-admin/admin.php?page=ll16-legal&tab=master', [], $admin )['body'], 'Zahlungsarten (Komma, Pflicht)' ) );
+
 section( 'Admin: Konflikt-Hinweis Complianz' );
 update_option( 'active_plugins', array_merge( (array) get_option( 'active_plugins' ), [ 'complianz-gdpr/complianz-gdpr.php' ] ) );
 $pg = http( 'GET', '/wp-admin/admin.php?page=ll16-legal', [], $admin )['body'];
