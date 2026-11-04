@@ -13,6 +13,11 @@ const wp = (...a: string[]) => execFileSync(WPCLI[0], [...WPCLI.slice(1), '--all
 test.afterAll(() => { wp('option', 'delete', 'll16_test_hang_agb'); wp('eval', 'delete_option("ll16_last_error");'); });
 
 test('Hängendes Fremdplugin beim Erzeugen: Fehlertext auf der Seite, Diagnose gespeichert, Rest bedienbar', async ({ page }) => {
+  wp('option', 'delete', 'll16_test_hang_agb');
+  // Stammdaten vollständig, damit die Seiten wirklich veröffentlicht (also gespeichert) werden
+  wp('eval', '$m = \\Lindenweg16\\Legal\\Core\\Masterdata::all(); $m["payment_methods"] = ["PayPal", "Kreditkarte"]; $m["shipping_carrier"] = "DHL"; update_option(\\Lindenweg16\\Legal\\Core\\Masterdata::OPTION, $m);');
+  // Die AGB-Seite muss neu angelegt werden, sonst wird sie als unverändert übersprungen und nichts gespeichert
+  wp('eval', '$p = get_page_by_path("agb"); if ($p) { wp_delete_post($p->ID, true); }');
   wp('option', 'update', 'll16_test_hang_agb', '1');
   wp('eval', 'delete_option("ll16_last_error");');
   page.on('dialog', (d) => d.accept());
