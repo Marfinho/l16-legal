@@ -5,6 +5,11 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
+  workflow_dispatch:           # manuell starten (Actions → Release → Run workflow); legt den Tag selbst an
+    inputs:
+      version:
+        description: 'Version ohne v, z. B. 0.2.0 (muss der Plugin-Version entsprechen)'
+        required: true
 permissions:
   contents: write
 jobs:
@@ -16,8 +21,10 @@ jobs:
         with: { php-version: '8.3' }
       - name: Version prüfen (Tag = Plugin-Header = LL16_VERSION)
         working-directory: lindenweg16-legal-suite
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
           HEADER="$(grep -m1 -E '^ \* Version:' lindenweg16-legal-suite.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')"
           CONST="$(grep -m1 "define( 'LL16_VERSION'" lindenweg16-legal-suite.php | sed -E "s/.*'LL16_VERSION', '([^']+)'.*/\1/")"
           echo "Tag=$TAG Header=$HEADER Konstante=$CONST"
@@ -33,5 +40,8 @@ jobs:
       - name: Release veröffentlichen
         env:
           GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.zip.sha256 --title "Lindenweg16 Legal Suite ${GITHUB_REF_NAME#v}" --generate-notes
+          VERSION="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          # Bei manuellem Start legt gh den Tag v<version> am geprüften Commit an.
+          gh release create "v$VERSION" dist/*.zip dist/*.zip.sha256 --title "Lindenweg16 Legal Suite $VERSION" --generate-notes --target "$GITHUB_SHA"
